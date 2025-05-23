@@ -31,13 +31,13 @@ class Patroli {
 
   factory Patroli.fromMap(Map<String, dynamic> map) {
     return Patroli(
-      id: map['id'],
+      id: map['id'] ?? '',
       catatanPatroli: map['catatan_patroli'] ?? '',
       rutePatroli: map['rute_patroli'] ?? '',
-      satpamId: map['satpam_id'],
-      lokasiId: map['lokasi_id'],
-      jadwalPatroliId: map['jadwal_patroli_id'],
-      penugasanId: map['penugasan_id'],
+      satpamId: map['satpam_id'] ?? '',
+      lokasiId: map['lokasi_id'] ?? '',
+      jadwalPatroliId: map['jadwal_patroli_id'] ?? '',
+      penugasanId: map['penugasan_id'] ?? '',
       jamMulai:
           map['jamMulai'] != null ? DateTime.parse(map['jamMulai']) : null,
       jamSelesai:
@@ -60,13 +60,13 @@ class Patroli {
       'id': id,
       'jamMulai': jamMulai?.toIso8601String(),
       'jamSelesai': jamSelesai?.toIso8601String(),
+      'catatan_patroli': catatanPatroli,
       'durasiPatroli': durasiPatroli?.inSeconds,
-      'catatanPatroli': catatanPatroli,
-      'rutePatroli': rutePatroli,
-      'satpamId': satpamId,
-      'lokasiId': lokasiId,
-      'jadwalPatroliId': jadwalPatroliId,
-      'penugasanId': penugasanId,
+      'rute_patroli': rutePatroli,
+      'satpam_id': satpamId,
+      'lokasi_id': lokasiId,
+      'jadwal_patroli_id': jadwalPatroliId,
+      'penugasan_id': penugasanId,
       'isTerlambat': isTerlambat,
       'checkpoints': checkpoints,
       'tanggal': tanggal.toIso8601String(),

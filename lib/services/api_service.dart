@@ -2,7 +2,8 @@ import 'dart:io';
 import 'dart:convert';
 import 'dart:developer';
 import 'package:ciputra_patroli/models/kejadian.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:ciputra_patroli/models/patroli_checkpoint.dart';
+// import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:http/http.dart' as http;
 import '../models/satpam.dart';
 import 'package:intl/intl.dart';
@@ -13,7 +14,7 @@ import 'package:path_provider/path_provider.dart';
 class ApiService {
   // static const String baseUrl = "http://10.0.2.2:8000/api";
   static const String baseUrl = "https://ciputrapatroli.site/api";
-  final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
+  // final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
 
   Future<Satpam?> getSatpamById(String id) async {
     final response = await http.get(Uri.parse('$baseUrl/satpam/$id'));
@@ -490,6 +491,152 @@ class ApiService {
     } catch (e) {
       print('Error getting kejadian list: $e');
       rethrow;
+    }
+  }
+
+  Future<List<PatroliCheckpoint>> getCheckpointsByPatroliId(
+      String patroliId) async {
+    try {
+      log('[DEBUG] Fetching checkpoints for patroli ID: $patroliId');
+      final response = await http.get(
+        Uri.parse('$baseUrl/patroli/$patroliId/checkpoints'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      );
+
+      log('[DEBUG] Response status code: ${response.statusCode}');
+      log('[DEBUG] Raw response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final dynamic responseData = json.decode(response.body);
+        log('[DEBUG] Decoded response data: $responseData');
+
+        // Handle both array and object responses
+        List<dynamic> data;
+        if (responseData is List) {
+          data = responseData;
+          log('[DEBUG] Response is a list with ${data.length} items');
+        } else if (responseData is Map && responseData.containsKey('data')) {
+          data = responseData['data'] is List ? responseData['data'] : [];
+          log('[DEBUG] Response contains data field with ${data.length} items');
+        } else {
+          data = [];
+          log('[DEBUG] No valid data found in response');
+        }
+
+        final checkpoints = data.map((json) {
+          try {
+            // Ensure json is a Map<String, dynamic>
+            if (json is Map) {
+              // Convert all keys to strings and handle null values
+              final Map<String, dynamic> typedJson = {};
+              json.forEach((key, value) {
+                if (key != null) {
+                  typedJson[key.toString()] = value;
+                }
+              });
+
+              log('[DEBUG] Processing checkpoint JSON: $typedJson');
+
+              final checkpoint = PatroliCheckpoint.fromJson(typedJson);
+              log('[DEBUG] Successfully created checkpoint:');
+              log('[DEBUG] - ID: ${checkpoint.id}');
+              log('[DEBUG] - Name: ${checkpoint.checkpointName}');
+              log('[DEBUG] - Status: ${checkpoint.status}');
+              log('[DEBUG] - Distance Status: ${checkpoint.distanceStatus}');
+              log('[DEBUG] - Is Late: ${checkpoint.isLate}');
+
+              return checkpoint;
+            }
+            throw Exception('Invalid checkpoint data format');
+          } catch (e, stackTrace) {
+            log('[ERROR] Error parsing checkpoint: $e');
+            log('[ERROR] Stack trace: $stackTrace');
+            rethrow;
+          }
+        }).toList();
+
+        log('[DEBUG] Successfully processed ${checkpoints.length} checkpoints');
+        return checkpoints;
+      } else {
+        log('[ERROR] Failed to load checkpoints: ${response.statusCode}');
+        log('[ERROR] Error response body: ${response.body}');
+        throw Exception('Failed to load checkpoints: ${response.statusCode}');
+      }
+    } catch (e, stackTrace) {
+      log('[ERROR] Error fetching checkpoints: $e');
+      log('[ERROR] Stack trace: $stackTrace');
+      throw Exception('Failed to connect to server: $e');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchPatroliHistory(
+      String satpamId) async {
+    try {
+      log('[DEBUG] Fetching patroli history for satpam ID: $satpamId');
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/patroli/history/$satpamId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      );
+
+      log('[DEBUG] Response status code: ${response.statusCode}');
+      log('[DEBUG] Raw response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final dynamic responseData = json.decode(response.body);
+        log('[DEBUG] Decoded response data: $responseData');
+
+        List<dynamic> data;
+        if (responseData is List) {
+          data = responseData;
+          log('[DEBUG] Response is a list with ${data.length} items');
+        } else if (responseData is Map && responseData.containsKey('data')) {
+          data = responseData['data'] is List ? responseData['data'] : [];
+          log('[DEBUG] Response contains data field with ${data.length} items');
+        } else {
+          data = [];
+          log('[DEBUG] No valid data found in response');
+        }
+
+        final patroliList = data.map((json) {
+          try {
+            if (json is Map) {
+              final Map<String, dynamic> typedJson = {};
+              json.forEach((key, value) {
+                if (key != null) {
+                  typedJson[key.toString()] = value;
+                }
+              });
+
+              log('[DEBUG] Processing patroli JSON: $typedJson');
+              return typedJson;
+            }
+            throw Exception('Invalid patroli data format');
+          } catch (e, stackTrace) {
+            log('[ERROR] Error parsing patroli: $e');
+            log('[ERROR] Stack trace: $stackTrace');
+            rethrow;
+          }
+        }).toList();
+
+        log('[DEBUG] Successfully processed ${patroliList.length} patroli records');
+        return patroliList;
+      } else {
+        log('[ERROR] Failed to load patroli history: ${response.statusCode}');
+        log('[ERROR] Error response body: ${response.body}');
+        throw Exception(
+            'Failed to load patroli history: ${response.statusCode}');
+      }
+    } catch (e, stackTrace) {
+      log('[ERROR] Error fetching patroli history: $e');
+      log('[ERROR] Stack trace: $stackTrace');
+      throw Exception('Failed to connect to server: $e');
     }
   }
 }

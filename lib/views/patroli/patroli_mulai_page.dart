@@ -37,7 +37,7 @@ class _StartPatroliState extends State<StartPatroli> {
   final DraggableScrollableController _draggableController =
       DraggableScrollableController();
   late String tanggalPatroli =
-      DateFormat('dd MMMM yyyy').format(DateTime.now());
+      DateFormat('dd MMMM yyyy', 'id_ID').format(DateTime.now());
   String? jamMulaiPatroli;
   late DateTime startTime;
   String durationString = "00:00";

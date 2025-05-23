@@ -224,7 +224,19 @@ class _CheckpointPageState extends State<CheckpointPage> {
                             size: 16, color: Colors.grey[600]),
                         const SizedBox(width: 4),
                         Text(
-                          'Lat: ${checkpoint['lat']}, Lng: ${checkpoint['lng']}',
+                          'Lat: ${checkpoint['lat']}',
+                          style:
+                              TextStyle(fontSize: 14, color: Colors.grey[600]),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        Icon(Icons.location_on,
+                            size: 16, color: Colors.grey[600]),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Lng: ${checkpoint['lng']}',
                           style:
                               TextStyle(fontSize: 14, color: Colors.grey[600]),
                         ),

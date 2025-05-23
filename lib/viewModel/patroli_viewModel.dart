@@ -159,6 +159,7 @@ class PatroliViewModel extends ChangeNotifier {
         distanceStatus: statusJarak,
         currentLatitude: currentLocation.latitude,
         currentLongitude: currentLocation.longitude,
+        isLate: isLate,
       );
 
       // Save checkpoint directly to Firebase
