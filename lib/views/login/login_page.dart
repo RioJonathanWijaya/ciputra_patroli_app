@@ -14,15 +14,19 @@ class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isPasswordVisible = false;
+  bool _mounted = true;
 
   @override
   void dispose() {
+    _mounted = false;
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
   void _showErrorDialog(String message) {
+    if (!_mounted) return;
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -45,6 +49,28 @@ class _LoginPageState extends State<LoginPage> {
         ],
       ),
     );
+  }
+
+  Future<void> _handleLogin() async {
+    if (!_mounted) return;
+
+    if (_formKey.currentState!.validate()) {
+      try {
+        final success = await context.read<LoginViewModel>().login(
+              _emailController.text,
+              _passwordController.text,
+            );
+
+        if (!_mounted) return;
+
+        if (!success) {
+          _showErrorDialog('Email atau password yang Anda masukkan salah');
+        }
+      } catch (e) {
+        if (!_mounted) return;
+        _showErrorDialog('Terjadi kesalahan saat login: $e');
+      }
+    }
   }
 
   @override
@@ -153,6 +179,7 @@ class _LoginPageState extends State<LoginPage> {
                             color: Colors.white70,
                           ),
                           onPressed: () {
+                            if (!_mounted) return;
                             setState(() {
                               _isPasswordVisible = !_isPasswordVisible;
                             });
@@ -187,19 +214,7 @@ class _LoginPageState extends State<LoginPage> {
                       width: double.infinity,
                       height: 50,
                       child: ElevatedButton(
-                        onPressed: () async {
-                          if (_formKey.currentState!.validate()) {
-                            final success =
-                                await context.read<LoginViewModel>().login(
-                                      _emailController.text,
-                                      _passwordController.text,
-                                    );
-                            if (!success) {
-                              _showErrorDialog(
-                                  'Email atau password yang Anda masukkan salah');
-                            }
-                          }
-                        },
+                        onPressed: _handleLogin,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white,
                           foregroundColor: const Color(0xFF1C3A6B),

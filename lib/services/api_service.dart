@@ -14,15 +14,68 @@ import 'package:path_provider/path_provider.dart';
 class ApiService {
   // static const String baseUrl = "http://10.0.2.2:8000/api";
   static const String baseUrl = "https://ciputrapatroli.site/api";
+  static const String relayBaseUrl = "https://ciputrapatroli.site/api/relay";
   // final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
 
   Future<Satpam?> getSatpamById(String id) async {
-    final response = await http.get(Uri.parse('$baseUrl/satpam/$id'));
+    try {
+      log('[DEBUG] Fetching satpam data for ID: $id');
+      final response = await http.get(
+        Uri.parse('$relayBaseUrl/satpam/$id'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Referer': 'https://ciputrapatroli.site/',
+          'Origin': 'https://ciputrapatroli.site',
+          'Connection': 'keep-alive',
+        },
+      );
 
-    if (response.statusCode == 200) {
-      return Satpam.fromJson(json.decode(response.body));
-    } else {
-      return null;
+      log('[DEBUG] Response status code: ${response.statusCode}');
+      log('[DEBUG] Response headers: ${response.headers}');
+      log('[DEBUG] Response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        try {
+          final jsonData = json.decode(response.body);
+          // Handle both direct object and wrapped object responses
+          final data = jsonData is Map && jsonData.containsKey('data')
+              ? jsonData['data']
+              : jsonData;
+
+          if (data == null) {
+            log('[ERROR] No data found in response');
+            return null;
+          }
+
+          // Convert the data to a Satpam object
+          final satpam = Satpam.fromJson(data);
+          log('[DEBUG] Successfully parsed satpam data: ${satpam.toString()}');
+          return satpam;
+        } catch (e, stackTrace) {
+          log('[ERROR] Failed to parse satpam data: $e');
+          log('[ERROR] Stack trace: $stackTrace');
+          log('[ERROR] Raw response body: ${response.body}');
+          throw Exception('Invalid response format from server');
+        }
+      } else if (response.statusCode == 404) {
+        log('[ERROR] Satpam not found with ID: $id');
+        return null;
+      } else if (response.statusCode == 403) {
+        log('[ERROR] Access denied by server security');
+        throw Exception('Access denied. Please try again later.');
+      } else {
+        log('[ERROR] Failed to fetch satpam data. Status code: ${response.statusCode}');
+        log('[ERROR] Response body: ${response.body}');
+        throw Exception('Failed to fetch satpam data: ${response.statusCode}');
+      }
+    } catch (e, stackTrace) {
+      log('[ERROR] Error fetching satpam data: $e');
+      log('[STACKTRACE] $stackTrace');
+      rethrow;
     }
   }
 
@@ -637,6 +690,26 @@ class ApiService {
       log('[ERROR] Error fetching patroli history: $e');
       log('[ERROR] Stack trace: $stackTrace');
       throw Exception('Failed to connect to server: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> savePatroli(
+      Map<String, dynamic> patroliData) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/patroli/save'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(patroliData),
+      );
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        throw Exception('Failed to save patroli: ${response.body}');
+      }
+    } catch (e) {
+      log('Error saving patroli: $e');
+      rethrow;
     }
   }
 }

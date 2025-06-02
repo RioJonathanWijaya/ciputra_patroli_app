@@ -50,37 +50,45 @@ class LoginViewModel extends ChangeNotifier {
 
       if (user != null) {
         log('[DEBUG] Fetching satpam data...');
-        await fetchSatpamData(user.uid);
-        log('[DEBUG] Satpam data fetched: ${_satpam?.toString()}');
+        try {
+          await fetchSatpamData(user.uid);
+          log('[DEBUG] Satpam data fetched: ${_satpam?.toString()}');
 
-        if (_satpam != null) {
-          log('[DEBUG] Saving session...');
-          await saveSession(_satpam!.satpamId);
-          log('[DEBUG] Session saved successfully');
+          if (_satpam != null) {
+            log('[DEBUG] Saving session...');
+            await saveSession(_satpam!.satpamId);
+            log('[DEBUG] Session saved successfully');
 
-          // Initialize notifications and update FCM token
-          log('[DEBUG] Initializing notifications...');
-          final notificationService = NotificationService();
-          await notificationService.initNotification();
-          await updateFcmToken();
-          log('[DEBUG] Notifications initialized');
+            // Initialize notifications and update FCM token
+            log('[DEBUG] Initializing notifications...');
+            final notificationService = NotificationService();
+            await notificationService.initNotification();
+            await updateFcmToken();
+            log('[DEBUG] Notifications initialized');
 
-          // Setup token refresh listener
-          log('[DEBUG] Setting up token refresh listener...');
-          _firebaseService.setupTokenRefreshListener(_satpam!.satpamId);
-          log('[DEBUG] Token refresh listener setup complete');
+            // Setup token refresh listener
+            log('[DEBUG] Setting up token refresh listener...');
+            _firebaseService.setupTokenRefreshListener(_satpam!.satpamId);
+            log('[DEBUG] Token refresh listener setup complete');
 
-          log('[DEBUG] Attempting navigation to home page...');
-          await NavigationService.navigateTo('/home', clearStack: true);
-          log('[DEBUG] Navigation to home page completed');
-          return true;
-        } else {
-          log('[ERROR] Satpam data is null after fetch');
+            log('[DEBUG] Attempting navigation to home page...');
+            await NavigationService.navigateTo('/home', clearStack: true);
+            log('[DEBUG] Navigation to home page completed');
+            return true;
+          } else {
+            log('[ERROR] Satpam data is null after fetch');
+            throw Exception('Satpam data not found. Please contact support.');
+          }
+        } catch (e) {
+          log('[ERROR] Error fetching satpam data: $e');
+          // Sign out the user since we couldn't get their data
+          await _authService.signOutUser();
+          rethrow;
         }
       } else {
         log('[ERROR] Firebase auth returned null user');
+        return false;
       }
-      return false;
     } catch (e, stackTrace) {
       log('[ERROR] Login error: $e');
       log('[STACKTRACE] $stackTrace');

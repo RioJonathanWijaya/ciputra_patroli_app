@@ -306,11 +306,16 @@ class PatroliViewModel extends ChangeNotifier {
         }
         log('[DEBUG] Patroli data updated successfully');
 
-        // Save the patroli data to Firebase
-        log('[DEBUG] Saving patroli data to Firebase...');
+        // Save the patroli data to API first
+        log('[DEBUG] Saving patroli data to API...');
         log('[DEBUG] Final patroli data to save: ${_currentPatroli!.toMap()}');
-        await _firebaseService.savePatroli(_currentPatroli!);
-        log('[DEBUG] Patroli data saved successfully to Firebase');
+        await _apiService.savePatroli(_currentPatroli!.toMap());
+        log('[DEBUG] Patroli data saved successfully to API');
+
+        // Then save to Firebase
+        // log('[DEBUG] Saving patroli data to Firebase...');
+        // await _firebaseService.savePatroli(_currentPatroli!);
+        // log('[DEBUG] Patroli data saved successfully to Firebase');
 
         // Refresh stats
         log('[DEBUG] Refreshing patroli stats...');
@@ -332,9 +337,11 @@ class PatroliViewModel extends ChangeNotifier {
           ),
         );
 
-        // Navigate back to patroli_jadwal_page
-        log('[DEBUG] Navigating back to patroli jadwal page');
-        await NavigationService.navigateTo('/patroliJadwal', clearStack: true);
+        // Navigate to jadwal patroli page with a back button
+        log('[DEBUG] Navigating to patroli jadwal page');
+        if (context.mounted) {
+          Navigator.pushReplacementNamed(context, '/patroliJadwal');
+        }
       } catch (e, stackTrace) {
         // Close loading indicator
         NavigationService.pop();

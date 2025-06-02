@@ -25,7 +25,6 @@ class _CheckpointPageState extends State<CheckpointPage> {
   DateTime? _captureTime;
   final Color _primaryColor = const Color(0xFF1C3A6B);
   final Color _accentColor = const Color(0xFF4CAF50);
-  final Color _errorColor = const Color(0xFFE53935);
 
   late Patroli patroli;
   late Penugasan penugasan;
@@ -177,7 +176,7 @@ class _CheckpointPageState extends State<CheckpointPage> {
       appBar: AppBar(
         title: Text(
           'Checkpoint ${currentIndex + 1}/${penugasan.titikPatroli.length}',
-          style: const TextStyle(color: Colors.white),
+          style: const TextStyle(color: Colors.black),
         ),
         actions: [
           IconButton(

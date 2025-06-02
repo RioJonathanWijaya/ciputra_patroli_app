@@ -15,6 +15,8 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:flutter/foundation.dart';
+import 'dart:developer' as developer;
 
 /// Top-level function for handling background messages
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -22,46 +24,71 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 }
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  try {
+    WidgetsFlutterBinding.ensureInitialized();
 
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    // Initialize Firebase first
+    await Firebase.initializeApp();
+    developer.log('Firebase initialized successfully');
 
-  await Firebase.initializeApp();
+    // Set up background message handler
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  await NotificationService().initNotification();
+    // Initialize notification service with proper error handling
+    final notificationService = NotificationService();
+    try {
+      await notificationService.initNotification();
+      developer.log('Notification service initialized successfully');
+    } catch (e) {
+      developer.log('Error initializing notification service: $e');
+      // Continue app initialization even if notifications fail
+    }
 
-  // Subscribe to a topic
-  // await FirebaseMessaging.instance.subscribeToTopic('kejadian');
+    // Set up message handlers
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      developer.log(
+          'Message received in foreground: ${message.notification?.title} ${message.notification?.body}');
+    });
 
-  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-    print(
-        'Message received in foreground: ${message.notification?.title} ${message.notification?.body}');
-  });
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      developer.log(
+          'Notification clicked: ${message.notification?.title} ${message.notification?.body}');
+    });
 
-  FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-    print(
-        'Notification clicked: ${message.notification?.title} ${message.notification?.body}');
-  });
+    // Initialize other services
+    await LocationService().initialize();
+    await initializeDateFormatting('id_ID', null);
 
-  await LocationService().initialize();
-  await initializeDateFormatting('id_ID', null);
+    // Create and initialize LoginViewModel
+    final loginViewModel = LoginViewModel();
+    await loginViewModel.initialize();
+    await loginViewModel.loadSession();
 
-  // Create a single instance of LoginViewModel
-  final loginViewModel = LoginViewModel();
-  await loginViewModel.initialize();
-  await loginViewModel.loadSession();
-
-  runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider.value(
-            value: loginViewModel), // Use the existing instance
-        ChangeNotifierProvider(create: (_) => PatroliViewModel(loginViewModel)),
-        ChangeNotifierProvider(create: (_) => KejadianViewModel()),
-      ],
-      child: const MyApp(),
-    ),
-  );
+    runApp(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider.value(value: loginViewModel),
+          ChangeNotifierProvider(
+              create: (_) => PatroliViewModel(loginViewModel)),
+          ChangeNotifierProvider(create: (_) => KejadianViewModel()),
+        ],
+        child: const MyApp(),
+      ),
+    );
+  } catch (e, stackTrace) {
+    developer.log('Error during app initialization: $e');
+    developer.log('Stack trace: $stackTrace');
+    // Show error UI or handle the error appropriately
+    runApp(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: Text('Error initializing app: $e'),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class MyApp extends StatelessWidget {
@@ -83,7 +110,6 @@ class MyApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      // Remove initialRoute and use home instead
       home: FutureBuilder<bool>(
         future: loginViewModel.isSessionValid(),
         builder: (context, snapshot) {
@@ -95,7 +121,6 @@ class MyApp extends StatelessWidget {
             );
           }
 
-          // If session is valid, go to home page, otherwise login page
           return snapshot.data == true ? const HomePage() : const LoginPage();
         },
       ),

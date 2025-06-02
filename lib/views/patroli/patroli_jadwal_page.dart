@@ -64,7 +64,21 @@ class _JadwalPatrolContentState extends State<_JadwalPatrolContent> {
               fontSize: 20,
               fontWeight: FontWeight.bold,
             ),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () => Navigator.pop(context),
+            ),
             actions: [
+              IconButton(
+                icon: const Icon(Icons.home),
+                onPressed: () {
+                  Navigator.pushNamedAndRemoveUntil(
+                    context,
+                    '/',
+                    (route) => false,
+                  );
+                },
+              ),
               IconButton(
                 icon: const Icon(Icons.notifications_none),
                 onPressed: () {},

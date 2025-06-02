@@ -242,16 +242,6 @@ class _StartPatroliState extends State<StartPatroli> {
         penugasan: penugasan,
         context: context,
       );
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Patroli berhasil disimpan!"),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(10)),
-          ),
-        ),
-      );
     }
   }
 

@@ -110,7 +110,6 @@ class _KejadianInputPageState extends State<KejadianInputPage> {
         });
       }
     } catch (e) {
-      print('Error picking image from gallery: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error selecting photo: $e')),
       );
