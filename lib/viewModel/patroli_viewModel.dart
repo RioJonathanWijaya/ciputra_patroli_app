@@ -184,6 +184,10 @@ class PatroliViewModel extends ChangeNotifier {
 
   bool _checkDistance(LatLng currentLocation, double checkpointLatitude,
       double checkpointLongitude) {
+    if (_currentPatroli == null || _currentPatroli!.checkpoints.isEmpty) {
+      return false;
+    }
+
     final distanceInMeters = Geolocator.distanceBetween(
       currentLocation.latitude,
       currentLocation.longitude,
@@ -194,8 +198,9 @@ class PatroliViewModel extends ChangeNotifier {
   }
 
   bool _checkLateness(DateTime currentTimestamp) {
-    if (_currentPatroli == null || _currentPatroli!.checkpoints.isEmpty)
+    if (_currentPatroli == null || _currentPatroli!.checkpoints.isEmpty) {
       return false;
+    }
 
     final lastCheckpoint = _currentPatroli!.checkpoints.last;
     final lastTimestamp = DateTime.parse(lastCheckpoint['timestamp']);

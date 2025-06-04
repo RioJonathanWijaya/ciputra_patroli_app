@@ -26,9 +26,7 @@ class KejadianViewModel extends ChangeNotifier {
       _kejadianList = await _apiService.fetchAllKejadian();
       log("[INFO] Data successfully fetched. Data length: ${_kejadianList.length}");
 
-      // Sort kejadian by date and time
       _kejadianList.sort((a, b) {
-        // First compare by date
         final dateComparison =
             b.waktuLaporan.year.compareTo(a.waktuLaporan.year);
         if (dateComparison != 0) return dateComparison;
@@ -40,15 +38,13 @@ class KejadianViewModel extends ChangeNotifier {
         final dayComparison = b.waktuLaporan.day.compareTo(a.waktuLaporan.day);
         if (dayComparison != 0) return dayComparison;
 
-        // If same date, compare by time
         final timeA = a.waktuLaporan.hour * 3600 +
             a.waktuLaporan.minute * 60 +
             a.waktuLaporan.second;
         final timeB = b.waktuLaporan.hour * 3600 +
             b.waktuLaporan.minute * 60 +
             b.waktuLaporan.second;
-        return timeB
-            .compareTo(timeA); // Sort in descending order (newest first)
+        return timeB.compareTo(timeA);
       });
 
       for (var data in _kejadianList) {
@@ -92,10 +88,7 @@ class KejadianViewModel extends ChangeNotifier {
     try {
       _kejadianList = await _apiService.fetchKejadianWithNotification();
       log("[INFO] Data successfully fetched. Data length: ${_kejadianList.length}");
-
-      // Sort kejadian by date and time
       _kejadianList.sort((a, b) {
-        // First compare by date
         final dateComparison =
             b.waktuLaporan.year.compareTo(a.waktuLaporan.year);
         if (dateComparison != 0) return dateComparison;

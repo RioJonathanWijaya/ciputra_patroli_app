@@ -1,5 +1,5 @@
 import 'package:ciputra_patroli/models/patroli.dart';
-import 'package:ciputra_patroli/services/firebase_service.dart';
+import 'package:ciputra_patroli/services/api_service.dart';
 import 'package:ciputra_patroli/viewModel/login_viewModel.dart';
 import 'package:ciputra_patroli/views/patroli/patroli_detail_sheet.dart';
 import 'package:flutter/material.dart';
@@ -14,12 +14,12 @@ class PatroliHistori extends StatefulWidget {
 }
 
 class _PatroliHistoriPageState extends State<PatroliHistori> {
-  final FirebaseService _firebaseService = FirebaseService();
+  final ApiService _apiService = ApiService();
   List<Patroli> _patroliList = [];
   bool _isLoading = true;
-  String? _error;
   final _searchController = TextEditingController();
   String _searchQuery = '';
+  String? _error;
 
   @override
   void initState() {
@@ -45,35 +45,21 @@ class _PatroliHistoriPageState extends State<PatroliHistori> {
         _error = null;
       });
 
-      final snapshot = await _firebaseService.dbRef.child('patroli').get();
-      if (snapshot.value == null) {
+      final loginVM = Provider.of<LoginViewModel>(context, listen: false);
+      final satpamId = loginVM.satpamId;
+
+      if (satpamId == null) {
         setState(() {
-          _patroliList = [];
+          _error = 'Data satpam tidak ditemukan';
           _isLoading = false;
         });
         return;
       }
 
-      final data = snapshot.value as Map<dynamic, dynamic>;
-      _patroliList = [];
+      final patroliData = await _apiService.fetchPatroliHistory(satpamId);
+      _patroliList = patroliData.map((data) => Patroli.fromMap(data)).toList();
 
-      data.forEach((key, value) {
-        if (value is Map) {
-          final Map<String, dynamic> patrolData = {};
-          value.forEach((k, v) {
-            patrolData[k.toString()] = v;
-          });
-          patrolData['id'] = key.toString();
-
-          try {
-            final patroli = Patroli.fromMap(patrolData);
-            _patroliList.add(patroli);
-          } catch (e) {
-            debugPrint('Error parsing patrol data: $e');
-          }
-        }
-      });
-
+      // Sort by date (most recent first)
       _patroliList.sort((a, b) => b.tanggal.compareTo(a.tanggal));
 
       setState(() {
@@ -126,9 +112,11 @@ class _PatroliHistoriPageState extends State<PatroliHistori> {
           Expanded(
             child: _isLoading
                 ? _buildLoadingIndicator()
-                : _patroliList.isEmpty
-                    ? _buildEmptyState()
-                    : _buildPatroliList(),
+                : _error != null
+                    ? _buildErrorState()
+                    : _patroliList.isEmpty
+                        ? _buildEmptyState()
+                        : _buildPatroliList(),
           ),
         ],
       ),
@@ -236,7 +224,12 @@ class _PatroliHistoriPageState extends State<PatroliHistori> {
                 ),
               ),
               const SizedBox(height: 12),
-              // Info rows
+              // Location and Security Guard info
+              if (patroli.lokasiNama != null)
+                _buildInfoRow(Icons.location_on, 'Lokasi', patroli.lokasiNama!),
+              if (patroli.satpamNama != null)
+                _buildInfoRow(Icons.person, 'Satpam', patroli.satpamNama!),
+              // Time and duration info
               _buildInfoRow(Icons.schedule, 'Jam Mulai', startTime),
               _buildInfoRow(Icons.schedule, 'Jam Selesai', endTime),
               _buildInfoRow(Icons.timer, 'Durasi Patroli', duration),
@@ -272,39 +265,28 @@ class _PatroliHistoriPageState extends State<PatroliHistori> {
 
   Widget _buildInfoRow(IconData icon, String label, String value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: const Color(0xFF1C3A6B).withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              icon,
-              size: 16,
-              color: const Color(0xFF1C3A6B),
+          Icon(icon, size: 20, color: Colors.grey[600]),
+          const SizedBox(width: 8),
+          Text(
+            '$label:',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w500,
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
-              label,
-              style: TextStyle(
+              value,
+              style: const TextStyle(
                 fontSize: 14,
-                color: Colors.grey[700],
+                color: Color(0xFF1C3A6B),
                 fontWeight: FontWeight.w500,
               ),
-            ),
-          ),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF1C3A6B),
             ),
           ),
         ],
@@ -408,6 +390,46 @@ class _PatroliHistoriPageState extends State<PatroliHistori> {
             ),
             child: const Text(
               'Refresh',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.error_outline,
+            size: 72,
+            color: Colors.red[400],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            _error ?? 'Terjadi kesalahan',
+            style: TextStyle(
+              fontSize: 18,
+              color: Colors.grey[800],
+              fontWeight: FontWeight.w500,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton(
+            onPressed: _loadPatroliData,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1C3A6B),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+            child: const Text(
+              'Coba Lagi',
               style: TextStyle(color: Colors.white),
             ),
           ),
