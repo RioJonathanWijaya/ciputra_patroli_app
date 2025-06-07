@@ -9,6 +9,8 @@ import 'package:ciputra_patroli/viewModel/kejadian_viewModel.dart';
 import 'package:ciputra_patroli/viewModel/login_viewModel.dart';
 import 'package:ciputra_patroli/services/navigation_service.dart';
 import 'package:ciputra_patroli/services/api_service.dart';
+import 'package:ciputra_patroli/widgets/maps/kejadian_map_picker.dart';
+import 'package:latlong2/latlong.dart';
 
 class KejadianInputPage extends StatefulWidget {
   const KejadianInputPage({super.key});
@@ -32,12 +34,14 @@ class _KejadianInputPageState extends State<KejadianInputPage> {
   final TextEditingController _alamatKorbanController = TextEditingController();
   final TextEditingController _keteranganKorbanController =
       TextEditingController();
+  final TextEditingController _coordinateController = TextEditingController();
 
   DateTime? _selectedDate;
   bool _isKecelakaan = false;
   bool _isPencurian = false;
   bool _isNotifikasi = false;
   String? _selectedTipeKejadian;
+  LatLng? _selectedLocation;
 
   List<String> tipeKejadianOptions = ['Ringan', 'Sedang', 'Berat', 'Kritis'];
 
@@ -58,6 +62,7 @@ class _KejadianInputPageState extends State<KejadianInputPage> {
     _namaKorbanController.dispose();
     _alamatKorbanController.dispose();
     _keteranganKorbanController.dispose();
+    _coordinateController.dispose();
     super.dispose();
   }
 
@@ -195,7 +200,9 @@ class _KejadianInputPageState extends State<KejadianInputPage> {
             satpamNama: loginVM.satpam?.nama ?? 'Satpam',
             waktuLaporan: DateTime.now(),
             waktuSelesai: null,
-            status: "Aktif");
+            status: "Aktif",
+            latitude: _selectedLocation?.latitude,
+            longitude: _selectedLocation?.longitude);
 
         // Save kejadian with photo URLs
         final result = await kejadianVM.saveKejadian(kejadian);
@@ -393,6 +400,57 @@ class _KejadianInputPageState extends State<KejadianInputPage> {
                         return null;
                       },
                     ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _coordinateController,
+                      decoration: const InputDecoration(
+                        labelText: 'Koordinat Kejadian',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => KejadianMapPicker(
+                                    onLocationSelected: (location) {
+                                      setState(() {
+                                        _selectedLocation = location;
+                                        _coordinateController.text =
+                                            '${location.latitude.toStringAsFixed(6)}, ${location.longitude.toStringAsFixed(6)}';
+                                      });
+                                      Navigator.of(context).pop();
+                                    },
+                                  ),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.location_on),
+                            label: const Text('Pilih Lokasi'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF1C3A6B),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (_selectedLocation != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        'Koordinat: ${_selectedLocation!.latitude.toStringAsFixed(6)}, ${_selectedLocation!.longitude.toStringAsFixed(6)}',
+                        style: const TextStyle(
+                          color: Color(0xFF757575),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       value: _selectedTipeKejadian,

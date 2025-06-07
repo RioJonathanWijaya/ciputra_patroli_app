@@ -3,6 +3,8 @@ class Kejadian {
   final String namaKejadian;
   final DateTime tanggalKejadian;
   final String lokasiKejadian;
+  final double? latitude;
+  final double? longitude;
   final String tipeKejadian;
   final String keterangan;
   final List<String>? fotoBuktiUrls;
@@ -23,6 +25,8 @@ class Kejadian {
     required this.namaKejadian,
     required this.tanggalKejadian,
     required this.lokasiKejadian,
+    this.latitude,
+    this.longitude,
     required this.tipeKejadian,
     required this.keterangan,
     this.fotoBuktiUrls,
@@ -55,6 +59,8 @@ class Kejadian {
       tanggalKejadian:
           DateTime.tryParse(map['tanggal_kejadian'] ?? '') ?? DateTime.now(),
       lokasiKejadian: map['lokasi_kejadian'] ?? '',
+      latitude: map['latitude']?.toDouble() ?? 0.0,
+      longitude: map['longitude']?.toDouble() ?? 0.0,
       tipeKejadian: map['tipe_kejadian'] ?? '',
       keterangan: map['keterangan'] ?? '',
       fotoBuktiUrls: fotoUrls,
@@ -80,6 +86,8 @@ class Kejadian {
         namaKejadian: '',
         tanggalKejadian: DateTime.now(),
         lokasiKejadian: '',
+        latitude: null,
+        longitude: null,
         tipeKejadian: '',
         keterangan: '',
         fotoBuktiUrls: [],
@@ -102,6 +110,8 @@ class Kejadian {
       'nama_kejadian': namaKejadian,
       'tanggal_kejadian': tanggalKejadian.toIso8601String(),
       'lokasi_kejadian': lokasiKejadian,
+      'latitude': latitude ?? 0.0,
+      'longitude': longitude,
       'tipe_kejadian': tipeKejadian,
       'keterangan': keterangan,
       'foto_bukti_kejadian': fotoBuktiUrls ?? [],
