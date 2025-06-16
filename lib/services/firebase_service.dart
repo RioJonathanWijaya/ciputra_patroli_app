@@ -159,4 +159,14 @@ class FirebaseService {
       rethrow;
     }
   }
+
+  Future<void> deletePatroli(String patroliId) async {
+    try {
+      await dbRef.child('patroli').child(patroliId).remove();
+      log("[INFO] Patroli data deleted successfully from Firebase");
+    } catch (e) {
+      log("[ERROR] Failed to delete patroli data: $e");
+      rethrow;
+    }
+  }
 }

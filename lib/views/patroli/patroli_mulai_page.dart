@@ -14,7 +14,6 @@ import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
 import 'package:ciputra_patroli/services/navigation_service.dart';
 
 class StartPatroli extends StatefulWidget {
@@ -247,85 +246,92 @@ class _StartPatroliState extends State<StartPatroli> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: CustomAppbar(titleName: "Mulai Patroli"),
-      body: Stack(
-        children: [
-          OpenStreetMapWidget(penugasan: penugasan),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: DraggableScrollableSheet(
-              controller: _draggableController,
-              initialChildSize: 0.3,
-              minChildSize: 0.3,
-              maxChildSize: 0.7,
-              snapSizes: const [0.3, 0.5, 0.7],
-              snap: true,
-              builder: (context, scrollController) {
-                return Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius:
-                        const BorderRadius.vertical(top: Radius.circular(24)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 16,
-                        spreadRadius: 0,
-                        offset: const Offset(0, -4),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      Center(
-                        child: Container(
-                          width: 48,
-                          height: 4,
-                          margin: const EdgeInsets.only(bottom: 8),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[300],
-                            borderRadius: BorderRadius.circular(2),
+    return WillPopScope(
+      onWillPop: () async {
+        log('[DEBUG] PatroliMulaiPage: Back button pressed');
+        await patroliVM.deleteTemporaryPatroli();
+        return true;
+      },
+      child: Scaffold(
+        appBar: CustomAppbar(titleName: "Mulai Patroli"),
+        body: Stack(
+          children: [
+            OpenStreetMapWidget(penugasan: penugasan),
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: DraggableScrollableSheet(
+                controller: _draggableController,
+                initialChildSize: 0.3,
+                minChildSize: 0.3,
+                maxChildSize: 0.7,
+                snapSizes: const [0.3, 0.5, 0.7],
+                snap: true,
+                builder: (context, scrollController) {
+                  return Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius:
+                          const BorderRadius.vertical(top: Radius.circular(24)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 16,
+                          spreadRadius: 0,
+                          offset: const Offset(0, -4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        Center(
+                          child: Container(
+                            width: 48,
+                            height: 4,
+                            margin: const EdgeInsets.only(bottom: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[300],
+                              borderRadius: BorderRadius.circular(2),
+                            ),
                           ),
                         ),
-                      ),
-                      Expanded(
-                        child: ListView(
-                          controller: scrollController,
-                          physics: const ClampingScrollPhysics(),
-                          children: [
-                            _buildHeaderSection(),
-                            const SizedBox(height: 24),
-                            const Divider(height: 1, color: Colors.grey),
-                            const SizedBox(height: 24),
-                            _buildTimeSection(),
-                            const SizedBox(height: 24),
-                            const Divider(height: 1, color: Colors.grey),
-                            const SizedBox(height: 24),
-                            _buildCheckpointsList(),
-                            const SizedBox(height: 24),
-                            _buildEvidenceSection(
-                              title: "Foto Kejadian",
-                              description: "Foto kejadian (bila ada)",
-                              image: kejadianImage,
-                              onPressed: () => pickImage(false),
-                            ),
-                            const SizedBox(height: 24),
-                            _buildNotesSection(),
-                            const SizedBox(height: 24),
-                            _buildSubmitButton(),
-                          ],
+                        Expanded(
+                          child: ListView(
+                            controller: scrollController,
+                            physics: const ClampingScrollPhysics(),
+                            children: [
+                              _buildHeaderSection(),
+                              const SizedBox(height: 24),
+                              const Divider(height: 1, color: Colors.grey),
+                              const SizedBox(height: 24),
+                              _buildTimeSection(),
+                              const SizedBox(height: 24),
+                              const Divider(height: 1, color: Colors.grey),
+                              const SizedBox(height: 24),
+                              _buildCheckpointsList(),
+                              const SizedBox(height: 24),
+                              _buildEvidenceSection(
+                                title: "Foto Kejadian",
+                                description: "Foto kejadian (bila ada)",
+                                image: kejadianImage,
+                                onPressed: () => pickImage(false),
+                              ),
+                              const SizedBox(height: 24),
+                              _buildNotesSection(),
+                              const SizedBox(height: 24),
+                              _buildSubmitButton(),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                );
-              },
+                      ],
+                    ),
+                  );
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

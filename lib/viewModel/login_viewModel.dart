@@ -59,14 +59,11 @@ class LoginViewModel extends ChangeNotifier {
             await saveSession(_satpam!.satpamId);
             log('[DEBUG] Session saved successfully');
 
-            // Initialize notifications and update FCM token
-            log('[DEBUG] Initializing notifications...');
             final notificationService = NotificationService();
             await notificationService.initNotification();
             await updateFcmToken();
             log('[DEBUG] Notifications initialized');
 
-            // Setup token refresh listener
             log('[DEBUG] Setting up token refresh listener...');
             _firebaseService.setupTokenRefreshListener(_satpam!.satpamId);
             log('[DEBUG] Token refresh listener setup complete');
@@ -81,14 +78,12 @@ class LoginViewModel extends ChangeNotifier {
           }
         } catch (e) {
           log('[ERROR] Error fetching satpam data: $e');
-          // Sign out the user since we couldn't get their data
           await _authService.signOutUser();
           rethrow;
         }
-      } else {
-        log('[ERROR] Firebase auth returned null user');
-        return false;
       }
+      log('[ERROR] Firebase auth returned null user');
+      return false;
     } catch (e, stackTrace) {
       log('[ERROR] Login error: $e');
       log('[STACKTRACE] $stackTrace');
@@ -120,7 +115,6 @@ class LoginViewModel extends ChangeNotifier {
           log('[DEBUG] Session is valid, fetching satpam data...');
           await fetchSatpamData(savedSatpamId);
 
-          // Initialize notifications and update FCM token
           if (_satpam != null) {
             log('[DEBUG] Initializing notifications for auto-login...');
             final notificationService = NotificationService();

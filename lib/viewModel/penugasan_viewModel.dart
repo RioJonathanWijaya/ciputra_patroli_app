@@ -41,7 +41,6 @@ class PenugasanPatroliViewModel extends ChangeNotifier {
       return;
     }
 
-    // Only fetch if we haven't fetched recently
     if (!_shouldRefresh() && _penugasanList.isNotEmpty) {
       log("[INFO] Using cached penugasan data");
       return;

@@ -100,15 +100,13 @@ class KejadianViewModel extends ChangeNotifier {
         final dayComparison = b.waktuLaporan.day.compareTo(a.waktuLaporan.day);
         if (dayComparison != 0) return dayComparison;
 
-        // If same date, compare by time
         final timeA = a.waktuLaporan.hour * 3600 +
             a.waktuLaporan.minute * 60 +
             a.waktuLaporan.second;
         final timeB = b.waktuLaporan.hour * 3600 +
             b.waktuLaporan.minute * 60 +
             b.waktuLaporan.second;
-        return timeB
-            .compareTo(timeA); // Sort in descending order (newest first)
+        return timeB.compareTo(timeA);
       });
 
       for (var data in _kejadianList) {

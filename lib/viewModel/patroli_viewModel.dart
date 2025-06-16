@@ -1,16 +1,14 @@
 import 'dart:developer';
-import 'dart:io';
 import 'package:ciputra_patroli/models/patroli.dart';
 import 'package:ciputra_patroli/models/patroli_checkpoint.dart';
 import 'package:ciputra_patroli/models/penugasan.dart';
 import 'package:ciputra_patroli/services/firebase_service.dart';
 import 'package:ciputra_patroli/viewModel/login_viewModel.dart';
-import 'package:ciputra_patroli/services/location_service.dart'; // Add LocationService import
-import 'package:firebase_database/firebase_database.dart';
+import 'package:ciputra_patroli/services/location_service.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
-import 'package:latlong2/latlong.dart'; // Import LatLng
+import 'package:latlong2/latlong.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/satpam.dart';
@@ -21,10 +19,8 @@ class PatroliViewModel extends ChangeNotifier {
   final ApiService _apiService = ApiService();
   final LoginViewModel _loginViewModel;
   final FirebaseService _firebaseService = FirebaseService();
-  final LocationService _locationService =
-      LocationService(); // Instance of LocationService
+  final LocationService _locationService = LocationService();
 
-  // Make apiService accessible
   ApiService get apiService => _apiService;
 
   Satpam? _satpam;
@@ -36,8 +32,22 @@ class PatroliViewModel extends ChangeNotifier {
   Patroli? _currentPatroli;
   Patroli? get currentPatroli => _currentPatroli;
 
+  List<PatroliCheckpoint> _checkpoints = [];
+  bool _isDisposed = false;
+  bool _isPatroliActive = false;
+  bool _isLocationTracking = false;
+  DateTime? _lastLocationUpdate;
+  static const Duration _locationUpdateInterval = Duration(seconds: 30);
+
   PatroliViewModel(this._loginViewModel) {
     loadSatpamData();
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    stopLocationTracking();
+    super.dispose();
   }
 
   Future<void> loadSatpamData() async {
@@ -104,9 +114,13 @@ class PatroliViewModel extends ChangeNotifier {
         tanggal: DateTime.now(),
       );
 
+      log('[DEBUG] Saving initial patrol data to Firebase...');
+      await _firebaseService.savePatroli(_currentPatroli!);
+      log('[DEBUG] Initial patrol data saved to Firebase successfully');
+
       notifyListeners();
     } catch (e) {
-      _currentPatroli = null; // Clear the patroli on error
+      _currentPatroli = null;
       rethrow;
     } finally {
       _setLoading(false);
@@ -131,7 +145,6 @@ class PatroliViewModel extends ChangeNotifier {
         throw Exception('Data patroli tidak ditemukan');
       }
 
-      // Get current location
       log('[DEBUG] Fetching current location...');
       LatLng? currentLocation = await _locationService.fetchCurrentLocation();
       if (currentLocation == null) {
@@ -139,14 +152,12 @@ class PatroliViewModel extends ChangeNotifier {
       }
       log('[DEBUG] Current location fetched: ${currentLocation.latitude}, ${currentLocation.longitude}');
 
-      // Check distance and lateness
       final distanceStatus =
           _checkDistance(currentLocation, latitude, longitude);
       final isLate = _checkLateness(DateTime.now());
       final status = isLate ? 'Late' : 'On Time';
       final statusJarak = distanceStatus ? 'Close' : 'Far';
 
-      // Create new checkpoint
       final newCheckpoint = PatroliCheckpoint(
         patroliId: _currentPatroli!.id,
         checkpointName: checkpointName,
@@ -162,12 +173,10 @@ class PatroliViewModel extends ChangeNotifier {
         isLate: isLate,
       );
 
-      // Save checkpoint directly to Firebase
       log('[DEBUG] Saving checkpoint to Firebase...');
       await _firebaseService.saveCheckpoint(newCheckpoint);
       log('[DEBUG] Checkpoint saved to Firebase successfully');
 
-      // Only store minimal checkpoint info in memory
       _currentPatroli!.addCheckpoint({
         'id': newCheckpoint.id,
         'timestamp': newCheckpoint.timestamp,
@@ -233,61 +242,11 @@ class PatroliViewModel extends ChangeNotifier {
     required Penugasan penugasan,
     required BuildContext context,
   }) async {
+    if (_currentPatroli == null) {
+      throw Exception('Data patroli tidak ditemukan');
+    }
+
     try {
-      if (_currentPatroli == null) {
-        log('[ERROR] Cannot end patroli: _currentPatroli is null');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error: Data patroli tidak ditemukan'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return;
-      }
-
-      log('[DEBUG] Preparing to end patroli: ${_currentPatroli!.id}');
-      log('[DEBUG] Current patroli state: ${_currentPatroli!.toMap()}');
-
-      // Show confirmation dialog
-      bool? confirm = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Konfirmasi'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Apakah Anda yakin ingin menyelesaikan patroli?'),
-              const SizedBox(height: 8),
-              Text(
-                'Patroli ID: ${_currentPatroli!.id}',
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-              Text(
-                'Jumlah Checkpoint: ${_currentPatroli!.checkpoints.length}',
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Batal'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Ya'),
-            ),
-          ],
-        ),
-      );
-
-      if (confirm != true) {
-        log('[DEBUG] User cancelled ending patroli');
-        return;
-      }
-
-      // Show loading indicator
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -297,7 +256,6 @@ class PatroliViewModel extends ChangeNotifier {
       );
 
       try {
-        // Update patroli data
         log('[DEBUG] Updating patroli data...');
         _currentPatroli!.catatanPatroli = catatanPatroli;
         _currentPatroli!.jamSelesai = DateTime.now();
@@ -311,30 +269,24 @@ class PatroliViewModel extends ChangeNotifier {
         }
         log('[DEBUG] Patroli data updated successfully');
 
-        // Save the patroli data to API first
         log('[DEBUG] Saving patroli data to API...');
         log('[DEBUG] Final patroli data to save: ${_currentPatroli!.toMap()}');
         await _apiService.savePatroli(_currentPatroli!.toMap());
         log('[DEBUG] Patroli data saved successfully to API');
 
-        // Then save to Firebase
-        // log('[DEBUG] Saving patroli data to Firebase...');
-        // await _firebaseService.savePatroli(_currentPatroli!);
-        // log('[DEBUG] Patroli data saved successfully to Firebase');
+        log('[DEBUG] Updating patroli data in Firebase...');
+        await _firebaseService.savePatroli(_currentPatroli!);
+        log('[DEBUG] Patroli data updated successfully in Firebase');
 
-        // Refresh stats
         log('[DEBUG] Refreshing patroli stats...');
         await _apiService.refreshPatroliStats();
         log('[DEBUG] Stats refreshed successfully');
 
-        // Clear the current patroli from memory
         _currentPatroli = null;
         log('[DEBUG] Cleared patroli from memory');
 
-        // Close loading indicator
         NavigationService.pop();
 
-        // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Patroli berhasil diselesaikan'),
@@ -342,13 +294,11 @@ class PatroliViewModel extends ChangeNotifier {
           ),
         );
 
-        // Navigate to jadwal patroli page with a back button
         log('[DEBUG] Navigating to patroli jadwal page');
         if (context.mounted) {
           Navigator.pushReplacementNamed(context, '/patroliJadwal');
         }
       } catch (e, stackTrace) {
-        // Close loading indicator
         NavigationService.pop();
 
         log('[ERROR] Failed to end patroli: $e');
@@ -380,5 +330,53 @@ class PatroliViewModel extends ChangeNotifier {
   void _setLoading(bool value) {
     _isLoading = value;
     notifyListeners();
+  }
+
+  Future<void> deleteTemporaryPatroli() async {
+    if (_currentPatroli == null) return;
+
+    try {
+      log("[INFO] Deleting temporary patrol data from Firebase...");
+      await _firebaseService.deletePatroli(_currentPatroli!.id);
+      log("[INFO] Temporary patrol data deleted successfully");
+
+      _currentPatroli = null;
+      _isPatroliActive = false;
+      _checkpoints.clear();
+      stopLocationTracking();
+      notifyListeners();
+    } catch (e) {
+      log("[ERROR] Failed to delete temporary patrol data: $e");
+    }
+  }
+
+  void startLocationTracking() {
+    if (_isLocationTracking) return;
+
+    _isLocationTracking = true;
+    _lastLocationUpdate = DateTime.now();
+    _checkLocationUpdates();
+  }
+
+  void stopLocationTracking() {
+    _isLocationTracking = false;
+  }
+
+  void _checkLocationUpdates() {
+    if (_isLocationTracking) {
+      final now = DateTime.now();
+      final difference = now.difference(_lastLocationUpdate!);
+
+      if (difference >= _locationUpdateInterval) {
+        _lastLocationUpdate = now;
+        _checkLocation();
+      }
+
+      Future.delayed(Duration.zero, _checkLocationUpdates);
+    }
+  }
+
+  void _checkLocation() {
+    // Implementation of _checkLocation method
   }
 }

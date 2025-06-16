@@ -178,14 +178,6 @@ class _CheckpointPageState extends State<CheckpointPage> {
           'Checkpoint ${currentIndex + 1}/${penugasan.titikPatroli.length}',
           style: const TextStyle(color: Colors.black),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.close),
-            onPressed: () async {
-              await NavigationService.pop();
-            },
-          ),
-        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
