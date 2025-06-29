@@ -2,6 +2,7 @@ import 'package:ciputra_patroli/views/kejadian/kejadian_list_page.dart';
 import 'package:ciputra_patroli/views/notifikasi/notifikasi_list_page.dart';
 import 'package:ciputra_patroli/views/patroli/patroli_page.dart';
 import 'package:ciputra_patroli/views/profile/profile_page.dart';
+import 'package:ciputra_patroli/views/alert/alert_page.dart';
 import 'package:ciputra_patroli/widgets/appbar/appbar.dart';
 import 'package:ciputra_patroli/widgets/navbar/custom_navbar.dart';
 import 'package:flutter/material.dart';
@@ -20,6 +21,7 @@ class _HomePageState extends State<HomePage> {
   final List<String> titles = [
     "Patroli",
     "Notifikasi",
+    "Alert",
     "Pelaporan Kejadian",
     "Profile"
   ];
@@ -27,6 +29,7 @@ class _HomePageState extends State<HomePage> {
   final List<Widget> pages = [
     const PatroliPage(),
     const NotifikasiListPage(),
+    const AlertPage(),
     const KejadianListPage(),
     const ProfilePage(),
   ];
@@ -49,7 +52,9 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: CustomAppbar(titleName: titles[selectedIndex]),
+      appBar: selectedIndex == 2
+          ? null
+          : CustomAppbar(titleName: titles[selectedIndex]),
       bottomNavigationBar: CustomNavigationBar(
         currentIndex: selectedIndex,
         onItemSelected: _onItemSelected,

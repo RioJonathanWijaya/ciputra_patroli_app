@@ -42,12 +42,15 @@ class _KejadianInputPageState extends State<KejadianInputPage> {
   bool _isNotifikasi = false;
   String? _selectedTipeKejadian;
   LatLng? _selectedLocation;
+  List<Map<String, dynamic>> _kategoriList = [];
+  String? _selectedKategoriId;
 
   List<String> tipeKejadianOptions = ['Ringan', 'Sedang', 'Berat', 'Kritis'];
 
   @override
   void initState() {
     super.initState();
+    _fetchKategori();
     _tanggalKejadianController.text =
         DateFormat('dd/MM/yyyy').format(DateTime.now());
     _selectedDate = DateTime.now();
@@ -157,6 +160,59 @@ class _KejadianInputPageState extends State<KejadianInputPage> {
     );
   }
 
+  Future<void> _fetchKategori() async {
+    try {
+      final kategori = await _apiService.fetchKategoriKejadian();
+      setState(() {
+        _kategoriList = kategori;
+      });
+    } catch (e) {
+      // handle error, show snackbar, etc.
+    }
+  }
+
+  bool _shouldShowKorbanData() {
+    // Find the selected kategori from the list
+    final selectedKategori = _kategoriList.firstWhere(
+      (kategori) => kategori['id'] == _selectedKategoriId,
+      orElse: () => {},
+    );
+
+    // Check if the selected kategori is for kecelakaan or pencurian
+    // We'll check the nama_kategori since it's more reliable than hardcoding IDs
+    final kategoriName = selectedKategori['nama_kategori']?.toLowerCase() ?? '';
+    return kategoriName.contains('kecelakaan') ||
+        kategoriName.contains('pencurian');
+  }
+
+  Widget _buildKategoriDropdown() {
+    return DropdownButtonFormField<String>(
+      value: _selectedKategoriId,
+      decoration: const InputDecoration(
+        labelText: 'Kategori Kejadian',
+        border: OutlineInputBorder(),
+      ),
+      items: _kategoriList.map((kategori) {
+        return DropdownMenuItem<String>(
+          value: kategori['id'],
+          child: Text(kategori['nama_kategori'] ?? ''),
+        );
+      }).toList(),
+      onChanged: (value) {
+        setState(() {
+          _selectedKategoriId = value;
+          // Clear korban data if not kecelakaan/pencurian
+          if (!_shouldShowKorbanData()) {
+            _namaKorbanController.clear();
+            _alamatKorbanController.clear();
+            _keteranganKorbanController.clear();
+          }
+        });
+      },
+      validator: (value) => value == null ? 'Pilih kategori kejadian' : null,
+    );
+  }
+
   Future<void> _submitForm() async {
     if (_formKey.currentState!.validate()) {
       final loginVM = Provider.of<LoginViewModel>(context, listen: false);
@@ -175,6 +231,9 @@ class _KejadianInputPageState extends State<KejadianInputPage> {
           );
         }
 
+        // Check if we should include korban data based on kategori
+        final showKorban = _shouldShowKorbanData();
+
         // Create kejadian with photo URLs
         final kejadian = Kejadian(
             id: kejadianId,
@@ -184,25 +243,21 @@ class _KejadianInputPageState extends State<KejadianInputPage> {
             tipeKejadian: _selectedTipeKejadian!,
             keterangan: _keteranganController.text,
             fotoBuktiUrls: photoUrls,
-            isKecelakaan: _isKecelakaan,
-            isPencurian: _isPencurian,
+            isKecelakaan: showKorban,
+            isPencurian: showKorban,
             isNotifikasi: _isNotifikasi,
-            namaKorban: _isKecelakaan || _isPencurian
-                ? _namaKorbanController.text
-                : null,
-            alamatKorban: _isKecelakaan || _isPencurian
-                ? _alamatKorbanController.text
-                : null,
-            keteranganKorban: _isKecelakaan || _isPencurian
-                ? _keteranganKorbanController.text
-                : null,
+            namaKorban: showKorban ? _namaKorbanController.text : null,
+            alamatKorban: showKorban ? _alamatKorbanController.text : null,
+            keteranganKorban:
+                showKorban ? _keteranganKorbanController.text : null,
             satpamId: loginVM.satpamId ?? '',
             satpamNama: loginVM.satpam?.nama ?? 'Satpam',
             waktuLaporan: DateTime.now(),
             waktuSelesai: null,
-            status: "Aktif",
+            status: "Baru",
             latitude: _selectedLocation?.latitude,
-            longitude: _selectedLocation?.longitude);
+            longitude: _selectedLocation?.longitude,
+            kategoriId: _selectedKategoriId);
 
         // Save kejadian with photo URLs
         final result = await kejadianVM.saveKejadian(kejadian);
@@ -452,6 +507,8 @@ class _KejadianInputPageState extends State<KejadianInputPage> {
                       ),
                     ],
                     const SizedBox(height: 12),
+                    _buildKategoriDropdown(),
+                    const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       value: _selectedTipeKejadian,
                       decoration: const InputDecoration(
@@ -625,37 +682,6 @@ class _KejadianInputPageState extends State<KejadianInputPage> {
                     Row(
                       children: [
                         Checkbox(
-                          value: _isKecelakaan,
-                          onChanged: (bool? value) {
-                            setState(() {
-                              _isKecelakaan = value ?? false;
-                              if (_isKecelakaan) {
-                                _isPencurian = false;
-                              }
-                            });
-                          },
-                          activeColor: const Color(0xFF1C3A6B),
-                        ),
-                        const Text('Kecelakaan'),
-                        const SizedBox(width: 16),
-                        Checkbox(
-                          value: _isPencurian,
-                          onChanged: (bool? value) {
-                            setState(() {
-                              _isPencurian = value ?? false;
-                              if (_isPencurian) {
-                                _isKecelakaan = false;
-                              }
-                            });
-                          },
-                          activeColor: const Color(0xFF1C3A6B),
-                        ),
-                        const Text('Pencurian'),
-                      ],
-                    ),
-                    Row(
-                      children: [
-                        Checkbox(
                           value: _isNotifikasi,
                           onChanged: (bool? value) {
                             setState(() {
@@ -672,7 +698,8 @@ class _KejadianInputPageState extends State<KejadianInputPage> {
                 ),
               ),
 
-              if (_isKecelakaan || _isPencurian) ...[
+              // Show korban data based on kategori
+              if (_shouldShowKorbanData()) ...[
                 const SizedBox(height: 16),
                 Container(
                   padding: const EdgeInsets.all(16),
@@ -691,9 +718,7 @@ class _KejadianInputPageState extends State<KejadianInputPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _isKecelakaan
-                            ? 'Detail Korban Kecelakaan'
-                            : 'Detail Korban Pencurian',
+                        'Detail Korban ${_selectedKategoriId != null ? _kategoriList.firstWhere((k) => k['id'] == _selectedKategoriId)['nama_kategori'] : ''}',
                         style: const TextStyle(
                           color: Color(0xFF1C3A6B),
                           fontSize: 16,
@@ -708,7 +733,7 @@ class _KejadianInputPageState extends State<KejadianInputPage> {
                           border: OutlineInputBorder(),
                         ),
                         validator: (value) {
-                          if ((_isKecelakaan || _isPencurian) &&
+                          if (_shouldShowKorbanData() &&
                               (value == null || value.isEmpty)) {
                             return 'Harap masukkan nama korban';
                           }
@@ -724,7 +749,7 @@ class _KejadianInputPageState extends State<KejadianInputPage> {
                         ),
                         maxLines: 2,
                         validator: (value) {
-                          if ((_isKecelakaan || _isPencurian) &&
+                          if (_shouldShowKorbanData() &&
                               (value == null || value.isEmpty)) {
                             return 'Harap masukkan alamat korban';
                           }
@@ -740,7 +765,7 @@ class _KejadianInputPageState extends State<KejadianInputPage> {
                         ),
                         maxLines: 3,
                         validator: (value) {
-                          if ((_isKecelakaan || _isPencurian) &&
+                          if (_shouldShowKorbanData() &&
                               (value == null || value.isEmpty)) {
                             return 'Harap masukkan keterangan korban';
                           }

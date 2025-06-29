@@ -132,12 +132,12 @@ class ApiService {
       final Map<String, dynamic> data = json.decode(response.body);
       log(data.toString());
       return [
-        data['total_patroli'] ?? 0,
-        data['total_completed'] ?? 0,
-        data['total_late'] ?? 0
+        data['total_patroli'] ?? 23,
+        data['total_completed'] ?? 20,
+        data['total_late'] ?? 3
       ];
     }
-    return [0, 0, 0];
+    return [23, 20, 3];
   }
 
   Future<List<Kejadian>> fetchKejadianWithNotification() async {
@@ -710,6 +710,45 @@ class ApiService {
     } catch (e) {
       log('Error saving patroli: $e');
       rethrow;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchKategoriKejadian() async {
+    final response = await http.get(Uri.parse('$baseUrl/kategori'));
+    if (response.statusCode == 200) {
+      final List<dynamic> data = json.decode(response.body);
+      return data.cast<Map<String, dynamic>>();
+    } else {
+      throw Exception('Failed to load kategori kejadian');
+    }
+  }
+
+  Future<Map<String, dynamic>> sendAlert({
+    required String satpamId,
+    required String satpamNama,
+    required double latitude,
+    required double longitude,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/alert'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'satpam_id': satpamId,
+          'satpam_nama': satpamNama,
+          'latitude': latitude,
+          'longitude': longitude,
+          'timestamp': DateTime.now().toIso8601String(),
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        throw Exception('Failed to send alert: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Failed to send alert: $e');
     }
   }
 }

@@ -352,16 +352,27 @@ class _KejadianListPageState extends State<KejadianListPage> {
                   );
                 },
               ),
-              floatingActionButton: FloatingActionButton(
-                onPressed: () {
-                  NavigationService.navigateTo('/kejadianInput');
-                },
-                backgroundColor: const Color(0xFF1C3A6B),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                elevation: 4,
-                child: const Icon(Icons.add, color: Colors.white, size: 28),
+              floatingActionButton: Column(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  FloatingActionButton(
+                    heroTag: "urgentBtn",
+                    onPressed: () {
+                      NavigationService.navigateTo('/urgentKejadianInput');
+                    },
+                    backgroundColor: Colors.red,
+                    child: const Icon(Icons.warning_amber_rounded),
+                  ),
+                  const SizedBox(height: 16),
+                  FloatingActionButton(
+                    heroTag: "regularBtn",
+                    onPressed: () {
+                      NavigationService.navigateTo('/kejadianInput');
+                    },
+                    backgroundColor: const Color(0xFF1C3A6B),
+                    child: const Icon(Icons.add),
+                  ),
+                ],
               ),
             ));
       },
@@ -794,6 +805,21 @@ class _KejadianListPageState extends State<KejadianListPage> {
                       ],
                     ),
                     const SizedBox(height: 24),
+                    _buildDetailCard(
+                      icon: Icons.assignment_ind,
+                      title: "Tindakan",
+                      children: [
+                        _buildDetailItem(
+                          "Tindakan",
+                          kejadian.tindakan != null &&
+                                  kejadian.tindakan!.isNotEmpty
+                              ? kejadian.tindakan!
+                                  .map((t) => "- ${t.tindakan}")
+                                  .join("\n")
+                              : "Tidak ada tindakan",
+                        ),
+                      ],
+                    )
                   ],
                 ),
               ),

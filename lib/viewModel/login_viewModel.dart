@@ -25,6 +25,7 @@ class LoginViewModel extends ChangeNotifier {
   bool get isInitialized => _isInitialized;
   Satpam? get satpam => _satpam;
   String? get satpamId => _satpam?.satpamId;
+  bool get isLoggedIn => _satpam != null;
 
   Future<void> initialize() async {
     if (!_isInitialized) {
@@ -33,61 +34,57 @@ class LoginViewModel extends ChangeNotifier {
         _isInitialized = true;
         notifyListeners();
       } catch (e) {
-        print('Error initializing LoginViewModel: $e');
+        log("Failed to initialize login view model: $e");
         rethrow;
       }
     }
   }
 
-  Future<bool> login(String email, String password) async {
-    if (email.isEmpty || password.isEmpty) return false;
+  Future<void> login(String email, String password) async {
+    if (email.isEmpty || password.isEmpty) {
+      throw Exception('Email dan password tidak boleh kosong');
+    }
 
     _setLoading(true);
     try {
-      log('[DEBUG] Starting login process...');
+      log("Starting login process...");
       final user = await _authService.loginUser(email, password);
-      log('[DEBUG] Firebase auth successful, user: ${user?.uid}');
 
-      if (user != null) {
-        log('[DEBUG] Fetching satpam data...');
-        try {
-          await fetchSatpamData(user.uid);
-          log('[DEBUG] Satpam data fetched: ${_satpam?.toString()}');
-
-          if (_satpam != null) {
-            log('[DEBUG] Saving session...');
-            await saveSession(_satpam!.satpamId);
-            log('[DEBUG] Session saved successfully');
-
-            final notificationService = NotificationService();
-            await notificationService.initNotification();
-            await updateFcmToken();
-            log('[DEBUG] Notifications initialized');
-
-            log('[DEBUG] Setting up token refresh listener...');
-            _firebaseService.setupTokenRefreshListener(_satpam!.satpamId);
-            log('[DEBUG] Token refresh listener setup complete');
-
-            log('[DEBUG] Attempting navigation to home page...');
-            await NavigationService.navigateTo('/home', clearStack: true);
-            log('[DEBUG] Navigation to home page completed');
-            return true;
-          } else {
-            log('[ERROR] Satpam data is null after fetch');
-            throw Exception('Satpam data not found. Please contact support.');
-          }
-        } catch (e) {
-          log('[ERROR] Error fetching satpam data: $e');
-          await _authService.signOutUser();
-          rethrow;
-        }
+      if (user == null) {
+        throw Exception('Email atau password yang Anda masukkan salah');
       }
-      log('[ERROR] Firebase auth returned null user');
-      return false;
-    } catch (e, stackTrace) {
-      log('[ERROR] Login error: $e');
-      log('[STACKTRACE] $stackTrace');
-      return false;
+
+      try {
+        await fetchSatpamData(user.uid);
+        log("User data has been retrieved successfully");
+
+        if (_satpam != null) {
+          await saveSession(_satpam!.satpamId);
+          log("User session has been saved");
+
+          final notificationService = NotificationService();
+          await notificationService.initNotification();
+          await updateFcmToken();
+          log("Notifications have been initialized");
+
+          _firebaseService.setupTokenRefreshListener(_satpam!.satpamId);
+          log("Token refresh listener has been set up");
+
+          await NavigationService.navigateTo('/home', clearStack: true);
+          log("User has been redirected to home page");
+        } else {
+          log("User data not found in the system");
+          throw Exception(
+              'Data satpam tidak ditemukan. Silakan hubungi admin.');
+        }
+      } catch (e) {
+        log("Failed to fetch user data: $e");
+        await _authService.signOutUser();
+        rethrow;
+      }
+    } catch (e) {
+      log("Login process failed: $e");
+      rethrow;
     } finally {
       _setLoading(false);
     }
@@ -98,54 +95,48 @@ class LoginViewModel extends ChangeNotifier {
       _satpam = await _apiService.getSatpamById(satpamId);
       notifyListeners();
     } catch (e) {
-      print('Error fetching satpam data: $e');
+      log("Failed to fetch satpam data: $e");
       rethrow;
     }
   }
 
   Future<void> loadSession() async {
     try {
-      log('[DEBUG] Loading session...');
+      log("Loading saved session...");
       final prefs = await SharedPreferences.getInstance();
       final savedSatpamId = prefs.getString(_satpamIdKey);
 
       if (savedSatpamId != null) {
-        log('[DEBUG] Found saved satpam ID: $savedSatpamId');
         if (await isSessionValid()) {
-          log('[DEBUG] Session is valid, fetching satpam data...');
           await fetchSatpamData(savedSatpamId);
 
           if (_satpam != null) {
-            log('[DEBUG] Initializing notifications for auto-login...');
             final notificationService = NotificationService();
             await notificationService.initNotification();
             await updateFcmToken();
             _firebaseService.setupTokenRefreshListener(_satpam!.satpamId);
-            log('[DEBUG] Auto-login successful');
+            log("Auto-login completed successfully");
           }
         } else {
-          log('[DEBUG] Session expired, clearing session data...');
+          log("Session has expired, clearing data");
           await clearSession();
         }
       } else {
-        log('[DEBUG] No saved session found');
+        log("No saved session found");
       }
-    } catch (e, stackTrace) {
-      log('[ERROR] Error loading session: $e');
-      log('[STACKTRACE] $stackTrace');
+    } catch (e) {
+      log("Failed to load session: $e");
       await clearSession();
     }
   }
 
   Future<bool> isSessionValid() async {
     try {
-      log('[DEBUG] Checking session validity...');
       final prefs = await SharedPreferences.getInstance();
       final lastLogin = prefs.getInt(_sessionKey);
       final savedSatpamId = prefs.getString(_satpamIdKey);
 
       if (lastLogin == null || savedSatpamId == null) {
-        log('[DEBUG] No session data found');
         return false;
       }
 
@@ -154,24 +145,20 @@ class LoginViewModel extends ChangeNotifier {
           Duration(hours: _sessionTimeoutHours).inMilliseconds;
       final isValid = (now - lastLogin) < sessionDuration;
 
-      log('[DEBUG] Session check - Last login: ${DateTime.fromMillisecondsSinceEpoch(lastLogin)}, Valid: $isValid');
-
       if (!isValid) {
-        log('[DEBUG] Session expired, clearing session data...');
+        log("Session has expired");
         await clearSession();
       }
 
       return isValid;
-    } catch (e, stackTrace) {
-      log('[ERROR] Error checking session: $e');
-      log('[STACKTRACE] $stackTrace');
+    } catch (e) {
+      log("Failed to validate session: $e");
       return false;
     }
   }
 
   Future<void> saveSession(String satpamId) async {
     try {
-      log('[DEBUG] Saving session for satpam: $satpamId');
       final prefs = await SharedPreferences.getInstance();
       final now = DateTime.now().millisecondsSinceEpoch;
 
@@ -180,23 +167,28 @@ class LoginViewModel extends ChangeNotifier {
         prefs.setInt(_sessionKey, now)
       ]);
 
-      log('[DEBUG] Session saved successfully at ${DateTime.fromMillisecondsSinceEpoch(now)}');
-    } catch (e, stackTrace) {
-      log('[ERROR] Error saving session: $e');
-      log('[STACKTRACE] $stackTrace');
+      log("Session has been saved for satpam: $satpamId");
+    } catch (e) {
+      log("Failed to save session: $e");
       rethrow;
     }
   }
 
   Future<void> logout() async {
     try {
+      _setLoading(false);
       await _authService.signOutUser();
       _satpam = null;
       await clearSession();
       notifyListeners();
-      await NavigationService.navigateTo('/login', clearStack: true);
+      final currentContext = NavigationService.navigatorKey.currentContext;
+      final currentRoute = ModalRoute.of(currentContext!)?.settings.name;
+      if (currentRoute != '/login') {
+        await NavigationService.navigateTo('/login', clearStack: true);
+      }
+      log("User has been logged out successfully");
     } catch (e) {
-      print('Error during logout: $e');
+      log("Failed to logout: $e");
       rethrow;
     }
   }
@@ -207,28 +199,26 @@ class LoginViewModel extends ChangeNotifier {
         final token = await _firebaseService.getFcmToken();
         if (token != null) {
           await _firebaseService.updateSatpamFcmToken(satpam!.satpamId);
-          log('FCM token updated successfully for satpam ${satpam!.satpamId}');
+          log("FCM token has been updated for satpam: ${satpam!.satpamId}");
         } else {
-          log('Failed to get FCM token');
+          log("No FCM token is available");
         }
       }
     } catch (e) {
-      log('Error updating FCM token: $e');
+      log("Failed to update FCM token: $e");
     }
   }
 
   Future<void> clearSession() async {
     try {
-      log('[DEBUG] Clearing session data...');
       final prefs = await SharedPreferences.getInstance();
       await Future.wait(
           [prefs.remove(_sessionKey), prefs.remove(_satpamIdKey)]);
       _satpam = null;
       notifyListeners();
-      log('[DEBUG] Session data cleared successfully');
-    } catch (e, stackTrace) {
-      log('[ERROR] Error clearing session: $e');
-      log('[STACKTRACE] $stackTrace');
+      log("Session data has been cleared");
+    } catch (e) {
+      log("Failed to clear session: $e");
       rethrow;
     }
   }
@@ -236,5 +226,9 @@ class LoginViewModel extends ChangeNotifier {
   void _setLoading(bool value) {
     _isLoading = value;
     notifyListeners();
+  }
+
+  void resetLoadingState() {
+    _setLoading(false);
   }
 }

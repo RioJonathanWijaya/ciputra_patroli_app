@@ -52,30 +52,26 @@ class PatroliViewModel extends ChangeNotifier {
 
   Future<void> loadSatpamData() async {
     final satpamId = _loginViewModel.satpamId;
-    log('[DEBUG] PatroliViewModel: Starting loadSatpamData, satpamId: $satpamId');
+    log("Loading satpam data for ID: $satpamId");
 
     if (satpamId != null) {
-      log('[DEBUG] PatroliViewModel: Loading Satpam data...');
       _setLoading(true);
 
       try {
         _satpam = _loginViewModel.satpam;
         if (_satpam != null) {
-          log('[DEBUG] PatroliViewModel: Satpam data loaded successfully');
-          log('[DEBUG] PatroliViewModel: Satpam details - ID: ${_satpam?.satpamId}, Name: ${_satpam?.nama}, NIP: ${_satpam?.nip}');
+          log("Satpam data loaded successfully");
+          log("Satpam details - ID: ${_satpam?.satpamId}, Name: ${_satpam?.nama}, NIP: ${_satpam?.nip}");
         } else {
-          log('[ERROR] PatroliViewModel: Satpam data is null after loading');
+          log("Satpam data not found after loading");
         }
-      } catch (e, stacktrace) {
-        log('[ERROR] PatroliViewModel: Failed to load Satpam data');
-        log('[ERROR] PatroliViewModel: Error details: $e');
-        log('[STACKTRACE] $stacktrace');
+      } catch (e) {
+        log("Failed to load satpam data: $e");
       } finally {
         _setLoading(false);
-        log('[DEBUG] PatroliViewModel: loadSatpamData completed, isLoading: $_isLoading');
       }
     } else {
-      log('[WARNING] PatroliViewModel: No Satpam ID found in session');
+      log("No satpam ID found in session");
     }
   }
 
@@ -85,19 +81,14 @@ class PatroliViewModel extends ChangeNotifier {
     required String penugasanId,
     required String jadwalPatroliId,
   }) async {
-    log('[DEBUG] PatroliViewModel: Starting createPatroli');
-    log('[DEBUG] PatroliViewModel: Creating patroli with parameters:');
-    log('[DEBUG] satpamId: $satpamId');
-    log('[DEBUG] lokasiId: $lokasiId');
-    log('[DEBUG] penugasanId: $penugasanId');
-    log('[DEBUG] jadwalPatroliId: $jadwalPatroliId');
-    log('[DEBUG] Current patroli before creation: ${_currentPatroli?.toMap()}');
+    log("Starting patrol creation process");
+    log("Patrol parameters - Satpam ID: $satpamId, Location ID: $lokasiId, Assignment ID: $penugasanId, Schedule ID: $jadwalPatroliId");
 
     try {
       _setLoading(true);
 
       final patroliId = const Uuid().v4();
-      log('[DEBUG] Generated patroli ID: $patroliId');
+      log("Generated patrol ID: $patroliId");
 
       _currentPatroli = Patroli(
         id: patroliId,
@@ -114,13 +105,14 @@ class PatroliViewModel extends ChangeNotifier {
         tanggal: DateTime.now(),
       );
 
-      log('[DEBUG] Saving initial patrol data to Firebase...');
+      log("Saving initial patrol data to Firebase");
       await _firebaseService.savePatroli(_currentPatroli!);
-      log('[DEBUG] Initial patrol data saved to Firebase successfully');
+      log("Initial patrol data saved successfully");
 
       notifyListeners();
     } catch (e) {
       _currentPatroli = null;
+      log("Failed to create patrol: $e");
       rethrow;
     } finally {
       _setLoading(false);
@@ -203,7 +195,7 @@ class PatroliViewModel extends ChangeNotifier {
       checkpointLatitude,
       checkpointLongitude,
     );
-    return distanceInMeters <= 25 ? true : false;
+    return distanceInMeters <= 50 ? true : false;
   }
 
   bool _checkLateness(DateTime currentTimestamp) {
@@ -336,9 +328,8 @@ class PatroliViewModel extends ChangeNotifier {
     if (_currentPatroli == null) return;
 
     try {
-      log("[INFO] Deleting temporary patrol data from Firebase...");
       await _firebaseService.deletePatroli(_currentPatroli!.id);
-      log("[INFO] Temporary patrol data deleted successfully");
+      log("Temporary patrol data deleted successfully");
 
       _currentPatroli = null;
       _isPatroliActive = false;
@@ -346,7 +337,7 @@ class PatroliViewModel extends ChangeNotifier {
       stopLocationTracking();
       notifyListeners();
     } catch (e) {
-      log("[ERROR] Failed to delete temporary patrol data: $e");
+      log("Failed to delete temporary patrol data: $e");
     }
   }
 
@@ -356,10 +347,12 @@ class PatroliViewModel extends ChangeNotifier {
     _isLocationTracking = true;
     _lastLocationUpdate = DateTime.now();
     _checkLocationUpdates();
+    log("Location tracking has been started");
   }
 
   void stopLocationTracking() {
     _isLocationTracking = false;
+    log("Location tracking has been stopped");
   }
 
   void _checkLocationUpdates() {

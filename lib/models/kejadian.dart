@@ -1,3 +1,5 @@
+import 'package:ciputra_patroli/models/tindakan.dart';
+
 class Kejadian {
   final String id;
   final String namaKejadian;
@@ -19,29 +21,32 @@ class Kejadian {
   final DateTime waktuLaporan;
   DateTime? waktuSelesai;
   String status;
+  final List<Tindakan>? tindakan;
+  final String? kategoriId;
 
-  Kejadian({
-    required this.id,
-    required this.namaKejadian,
-    required this.tanggalKejadian,
-    required this.lokasiKejadian,
-    this.latitude,
-    this.longitude,
-    required this.tipeKejadian,
-    required this.keterangan,
-    this.fotoBuktiUrls,
-    required this.isKecelakaan,
-    required this.isPencurian,
-    required this.isNotifikasi,
-    this.namaKorban,
-    this.alamatKorban,
-    this.keteranganKorban,
-    required this.satpamId,
-    required this.satpamNama,
-    required this.waktuLaporan,
-    this.waktuSelesai,
-    required this.status,
-  });
+  Kejadian(
+      {required this.id,
+      required this.namaKejadian,
+      required this.tanggalKejadian,
+      required this.lokasiKejadian,
+      this.latitude,
+      this.longitude,
+      required this.tipeKejadian,
+      required this.keterangan,
+      this.fotoBuktiUrls,
+      required this.isKecelakaan,
+      required this.isPencurian,
+      required this.isNotifikasi,
+      this.namaKorban,
+      this.alamatKorban,
+      this.keteranganKorban,
+      required this.satpamId,
+      required this.satpamNama,
+      required this.waktuLaporan,
+      this.waktuSelesai,
+      required this.status,
+      this.tindakan,
+      this.kategoriId});
 
   factory Kejadian.fromMap(Map<String, dynamic> map) {
     List<String>? fotoUrls;
@@ -53,14 +58,21 @@ class Kejadian {
       }
     }
 
+    List<Tindakan>? tindakanList;
+    if (map['tindakan'] != null && map['tindakan'] is List) {
+      tindakanList = (map['tindakan'] as List)
+          .map((e) => Tindakan.fromMap(Map<String, dynamic>.from(e)))
+          .toList();
+    }
+
     return Kejadian(
       id: map['id'].toString(),
       namaKejadian: map['nama_kejadian'] ?? '',
       tanggalKejadian:
           DateTime.tryParse(map['tanggal_kejadian'] ?? '') ?? DateTime.now(),
       lokasiKejadian: map['lokasi_kejadian'] ?? '',
-      latitude: map['latitude']?.toDouble() ?? 0.0,
-      longitude: map['longitude']?.toDouble() ?? 0.0,
+      latitude: _parseToDouble(map['latitude']),
+      longitude: _parseToDouble(map['longitude']),
       tipeKejadian: map['tipe_kejadian'] ?? '',
       keterangan: map['keterangan'] ?? '',
       fotoBuktiUrls: fotoUrls,
@@ -78,31 +90,34 @@ class Kejadian {
           ? DateTime.tryParse(map['waktu_selesai'])
           : null,
       status: map['status'] ?? '',
+      tindakan: tindakanList,
+      kategoriId: map['kategori_id'],
     );
   }
 
   factory Kejadian.empty() => Kejadian(
-        id: '',
-        namaKejadian: '',
-        tanggalKejadian: DateTime.now(),
-        lokasiKejadian: '',
-        latitude: null,
-        longitude: null,
-        tipeKejadian: '',
-        keterangan: '',
-        fotoBuktiUrls: [],
-        isKecelakaan: false,
-        isPencurian: false,
-        isNotifikasi: false,
-        namaKorban: '',
-        alamatKorban: '',
-        keteranganKorban: '',
-        satpamId: '',
-        satpamNama: '',
-        waktuLaporan: DateTime.now(),
-        waktuSelesai: null,
-        status: '',
-      );
+      id: '',
+      namaKejadian: '',
+      tanggalKejadian: DateTime.now(),
+      lokasiKejadian: '',
+      latitude: null,
+      longitude: null,
+      tipeKejadian: '',
+      keterangan: '',
+      fotoBuktiUrls: [],
+      isKecelakaan: false,
+      isPencurian: false,
+      isNotifikasi: false,
+      namaKorban: '',
+      alamatKorban: '',
+      keteranganKorban: '',
+      satpamId: '',
+      satpamNama: '',
+      waktuLaporan: DateTime.now(),
+      waktuSelesai: null,
+      status: '',
+      tindakan: [],
+      kategoriId: null);
 
   Map<String, dynamic> toMap() {
     return {
@@ -111,7 +126,7 @@ class Kejadian {
       'tanggal_kejadian': tanggalKejadian.toIso8601String(),
       'lokasi_kejadian': lokasiKejadian,
       'latitude': latitude ?? 0.0,
-      'longitude': longitude,
+      'longitude': longitude ?? 0.0,
       'tipe_kejadian': tipeKejadian,
       'keterangan': keterangan,
       'foto_bukti_kejadian': fotoBuktiUrls ?? [],
@@ -125,7 +140,21 @@ class Kejadian {
       'satpam_nama': satpamNama,
       'waktu_laporan': waktuLaporan.toIso8601String(),
       'waktu_selesai': waktuSelesai?.toIso8601String(),
-      'status': status
+      'status': status,
+      'tindakan': tindakan?.map((e) => e.toMap()).toList() ?? [],
+      'kategori_id': kategoriId,
     };
   }
+}
+
+double? _parseToDouble(dynamic value) {
+  if (value == null) return null;
+  if (value is double) return value;
+  if (value is int) return value.toDouble();
+  if (value is String) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return null;
+    return double.tryParse(trimmed);
+  }
+  return null;
 }

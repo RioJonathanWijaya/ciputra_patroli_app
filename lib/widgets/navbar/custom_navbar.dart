@@ -11,6 +11,10 @@ final List<SalomonBottomBarItem> _items = [
       title: const Text("Notifikasi"),
       selectedColor: Colors.white),
   SalomonBottomBarItem(
+      icon: const Icon(Icons.warning_rounded),
+      title: const Text("Alert"),
+      selectedColor: Colors.red),
+  SalomonBottomBarItem(
       icon: const Icon(Icons.edit_document),
       title: const Text("Kejadian"),
       selectedColor: Colors.white),
@@ -38,7 +42,7 @@ class _CustomNavigationBarState extends State<CustomNavigationBar> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xff11c3a6b),
+      color: const Color(0xFF1C3A6B),
       child: Padding(
         padding: const EdgeInsets.only(
             top: 10.0, bottom: 0.0, left: 10.0, right: 10.0),

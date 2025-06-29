@@ -25,50 +25,64 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void _showErrorDialog(String message) {
-    if (!_mounted) return;
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        title: const Row(
-          children: [
-            Icon(Icons.error_outline, color: Colors.red),
-            SizedBox(width: 8),
-            Text('Login Gagal'),
+    if (!_mounted || !context.mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_mounted || !context.mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false, // Prevent dismiss by tapping outside
+        builder: (BuildContext dialogContext) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.error_outline, color: Colors.red),
+              SizedBox(width: 8),
+              Text('Login Gagal'),
+            ],
+          ),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
+              child: const Text('OK'),
+            ),
           ],
         ),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
+      );
+    });
   }
 
   Future<void> _handleLogin() async {
-    if (!_mounted) return;
+    if (!_mounted || !context.mounted) return;
 
     if (_formKey.currentState!.validate()) {
+      final loginViewModel = context.read<LoginViewModel>();
+
       try {
-        final success = await context.read<LoginViewModel>().login(
-              _emailController.text,
-              _passwordController.text,
-            );
-
-        if (!_mounted) return;
-
-        if (!success) {
-          _showErrorDialog('Email atau password yang Anda masukkan salah');
-        }
+        await loginViewModel.login(
+          _emailController.text.trim(),
+          _passwordController.text.trim(),
+        );
+        // If we reach here, login was successful and navigation should have occurred
       } catch (e) {
-        if (!_mounted) return;
-        _showErrorDialog('Terjadi kesalahan saat login: $e');
+        if (!_mounted || !context.mounted) return;
+        String message = "Terjadi kesalahan saat login. Silakan coba lagi.";
+        if (e is Exception) {
+          message = e.toString().replaceFirst("Exception: ", "");
+        } else if (e is String) {
+          message = e;
+        }
+        _showErrorDialog(message);
+        // Reset loading state after dialog is shown
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (_mounted) {
+            loginViewModel.resetLoadingState();
+          }
+        });
       }
     }
   }
@@ -132,6 +146,7 @@ class _LoginPageState extends State<LoginPage> {
                     TextFormField(
                       controller: _emailController,
                       style: const TextStyle(color: Colors.white),
+                      keyboardType: TextInputType.emailAddress,
                       decoration: InputDecoration(
                         labelText: 'Email',
                         labelStyle: const TextStyle(color: Colors.white70),
@@ -153,7 +168,7 @@ class _LoginPageState extends State<LoginPage> {
                         fillColor: Colors.white.withOpacity(0.1),
                       ),
                       validator: (value) {
-                        if (value == null || value.isEmpty) {
+                        if (value == null || value.trim().isEmpty) {
                           return 'Email tidak boleh kosong';
                         }
                         return null;
@@ -201,7 +216,7 @@ class _LoginPageState extends State<LoginPage> {
                         fillColor: Colors.white.withOpacity(0.1),
                       ),
                       validator: (value) {
-                        if (value == null || value.isEmpty) {
+                        if (value == null || value.trim().isEmpty) {
                           return 'Password tidak boleh kosong';
                         }
                         return null;
@@ -209,23 +224,25 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     const SizedBox(height: 24),
 
-                    // Login Button
+                    // Login Button - Using Selector instead of Consumer for more precise updates
                     SizedBox(
                       width: double.infinity,
                       height: 50,
-                      child: ElevatedButton(
-                        onPressed: _handleLogin,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: const Color(0xFF1C3A6B),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          elevation: 0,
-                        ),
-                        child: Consumer<LoginViewModel>(
-                          builder: (context, loginVM, child) {
-                            return loginVM.isLoading
+                      child: Selector<LoginViewModel, bool>(
+                        selector: (_, loginVM) => loginVM.isLoading,
+                        builder: (context, isLoading, child) {
+                          return ElevatedButton(
+                            onPressed: isLoading ? null : _handleLogin,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: const Color(0xFF1C3A6B),
+                              disabledBackgroundColor: Colors.white70,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 0,
+                            ),
+                            child: isLoading
                                 ? const SizedBox(
                                     width: 20,
                                     height: 20,
@@ -241,9 +258,9 @@ class _LoginPageState extends State<LoginPage> {
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
                                     ),
-                                  );
-                          },
-                        ),
+                                  ),
+                          );
+                        },
                       ),
                     ),
                   ],

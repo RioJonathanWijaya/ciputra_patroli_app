@@ -34,30 +34,29 @@ class FirebaseService {
   Future<void> savePatroli(Patroli patroli) async {
     try {
       await dbRef.child('patroli').child(patroli.id).set(patroli.toMap());
-      log("Patroli saved successfully with ID: ${patroli.id}");
+      log("Patrol data has been saved with ID: ${patroli.id}");
     } catch (e) {
-      print("Error saving Patroli: $e");
+      log("Failed to save patrol data: $e");
     }
   }
 
   Future<Patroli?> getPatroli(String patroliId) async {
     try {
-      log('[DEBUG] Fetching patroli with ID: $patroliId');
+      log("Fetching patrol data for ID: $patroliId");
       final snapshot = await dbRef.child('patroli').child(patroliId).get();
 
       if (!snapshot.exists) {
-        log('[WARNING] Patroli not found with ID: $patroliId');
+        log("Patrol data not found for ID: $patroliId");
         return null;
       }
 
       final data = snapshot.value as Map<dynamic, dynamic>;
-      log('[DEBUG] Patroli data retrieved: $data');
+      log("Patrol data retrieved successfully");
 
-      // Convert Map<dynamic, dynamic> to Map<String, dynamic>
       final Map<String, dynamic> typedData = Map<String, dynamic>.from(data);
       return Patroli.fromMap(typedData);
     } catch (e) {
-      log('[ERROR] Error getting patroli: $e');
+      log("Failed to retrieve patrol data: $e");
       return null;
     }
   }
@@ -68,9 +67,9 @@ class FirebaseService {
           .child('patroli_checkpoint')
           .child(checkpoint.id)
           .set(checkpoint.toJson());
-      log("Patroli saved successfully with ID: ${checkpoint.id}");
+      log("Checkpoint data has been saved with ID: ${checkpoint.id}");
     } catch (e) {
-      print("Error saving Patroli: $e");
+      log("Failed to save checkpoint data: $e");
     }
   }
 
@@ -91,7 +90,7 @@ class FirebaseService {
     try {
       return await _firebaseMessaging.getToken();
     } catch (e) {
-      log('Error getting FCM token: $e');
+      log("Failed to get FCM token: $e");
       return null;
     }
   }
@@ -163,9 +162,9 @@ class FirebaseService {
   Future<void> deletePatroli(String patroliId) async {
     try {
       await dbRef.child('patroli').child(patroliId).remove();
-      log("[INFO] Patroli data deleted successfully from Firebase");
+      log("Patrol data has been deleted successfully");
     } catch (e) {
-      log("[ERROR] Failed to delete patroli data: $e");
+      log("Failed to delete patrol data: $e");
       rethrow;
     }
   }

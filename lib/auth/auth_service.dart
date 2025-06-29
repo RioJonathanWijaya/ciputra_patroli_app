@@ -21,23 +21,19 @@ class AuthService extends ChangeNotifier {
 
   Future<void> initialize() async {
     try {
-      // Initialize auth state listener only when needed
       _authStateSubscription?.cancel();
       _authStateSubscription = auth.authStateChanges().listen((User? user) {
         _user = user;
         notifyListeners();
       });
-      log("AuthService initialized successfully");
+      log("Authentication service has been initialized");
     } catch (e) {
-      log("AuthService initialization error: $e");
+      log("Failed to initialize authentication service: $e");
     }
   }
 
   Future<User?> loginUser(String email, String password) async {
     try {
-      log("Signing in with: Email: $email, Password: $password");
-
-      // Initialize if not already done
       if (_authStateSubscription == null) {
         await initialize();
       }
@@ -50,11 +46,34 @@ class AuthService extends ChangeNotifier {
       await Future.delayed(const Duration(milliseconds: 500));
 
       _user = auth.currentUser;
-      log("Login successful: ${_user?.email}");
+      log("User ${_user?.email} has logged in successfully");
       return _user;
+    } on FirebaseAuthException catch (e) {
+      String errorMessage;
+      switch (e.code) {
+        case 'user-not-found':
+          errorMessage = 'Email tidak terdaftar';
+          break;
+        case 'wrong-password':
+          errorMessage = 'Password yang Anda masukkan salah';
+          break;
+        case 'invalid-email':
+          errorMessage = 'Format email tidak valid';
+          break;
+        case 'user-disabled':
+          errorMessage = 'Akun telah dinonaktifkan';
+          break;
+        case 'invalid-credential':
+          errorMessage = 'Email atau password yang Anda masukkan salah';
+          break;
+        default:
+          errorMessage = 'Terjadi kesalahan saat login: ${e.message}';
+      }
+      log("Login failed: $errorMessage");
+      throw errorMessage;
     } catch (e) {
-      log("[AuthService] Login failed: $e");
-      return null;
+      log("An unexpected error occurred during login: $e");
+      throw 'Terjadi kesalahan saat login: $e';
     }
   }
 
@@ -63,9 +82,9 @@ class AuthService extends ChangeNotifier {
       await auth.signOut();
       _user = null;
       notifyListeners();
-      log("User signed out");
+      log("User has been signed out successfully");
     } catch (e) {
-      log("Logout failed: $e");
+      log("Failed to sign out user: $e");
     }
   }
 

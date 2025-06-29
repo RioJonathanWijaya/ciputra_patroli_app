@@ -10,6 +10,7 @@ import 'package:ciputra_patroli/views/login/login_page.dart';
 import 'package:ciputra_patroli/views/patroli/checkpoint_page.dart';
 import 'package:ciputra_patroli/views/patroli/patroli_jadwal_page.dart';
 import 'package:ciputra_patroli/views/patroli/patroli_mulai_page.dart';
+import 'package:ciputra_patroli/views/kejadian/urgent_kejadian_input_page.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
@@ -21,6 +22,7 @@ import 'dart:developer' as developer;
 /// Top-level function for handling background messages
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(); // Ensure Firebase is initialized
+  developer.log("Received background message: ${message.messageId}");
 }
 
 Future<void> main() async {
@@ -29,7 +31,7 @@ Future<void> main() async {
 
     // Initialize Firebase first
     await Firebase.initializeApp();
-    developer.log('Firebase initialized successfully');
+    developer.log("Firebase has been initialized successfully");
 
     // Set up background message handler
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
@@ -38,21 +40,21 @@ Future<void> main() async {
     final notificationService = NotificationService();
     try {
       await notificationService.initNotification();
-      developer.log('Notification service initialized successfully');
+      developer.log("Notification service has been initialized successfully");
     } catch (e) {
-      developer.log('Error initializing notification service: $e');
+      developer.log("Failed to initialize notification service: $e");
       // Continue app initialization even if notifications fail
     }
 
     // Set up message handlers
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       developer.log(
-          'Message received in foreground: ${message.notification?.title} ${message.notification?.body}');
+          "Received foreground message: ${message.notification?.title} ${message.notification?.body}");
     });
 
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
       developer.log(
-          'Notification clicked: ${message.notification?.title} ${message.notification?.body}');
+          "Notification has been opened: ${message.notification?.title} ${message.notification?.body}");
     });
 
     // Initialize other services
@@ -76,14 +78,14 @@ Future<void> main() async {
       ),
     );
   } catch (e, stackTrace) {
-    developer.log('Error during app initialization: $e');
-    developer.log('Stack trace: $stackTrace');
+    developer.log("Application initialization failed: $e");
+    developer.log("Stack trace: $stackTrace");
     // Show error UI or handle the error appropriately
     runApp(
       MaterialApp(
         home: Scaffold(
           body: Center(
-            child: Text('Error initializing app: $e'),
+            child: Text('Failed to initialize application: $e'),
           ),
         ),
       ),
@@ -110,18 +112,9 @@ class MyApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: FutureBuilder<bool>(
-        future: loginViewModel.isSessionValid(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Scaffold(
-              body: Center(
-                child: CircularProgressIndicator(),
-              ),
-            );
-          }
-
-          return snapshot.data == true ? const HomePage() : const LoginPage();
+      home: Consumer<LoginViewModel>(
+        builder: (context, loginVM, _) {
+          return loginVM.isLoggedIn ? const HomePage() : const LoginPage();
         },
       ),
       onGenerateRoute: (settings) {
@@ -155,6 +148,10 @@ class MyApp extends StatelessWidget {
           case '/kejadianInput':
             return MaterialPageRoute(
               builder: (_) => const KejadianInputPage(),
+            );
+          case '/urgentKejadianInput':
+            return MaterialPageRoute(
+              builder: (_) => const UrgentKejadianInputPage(),
             );
           default:
             return MaterialPageRoute(

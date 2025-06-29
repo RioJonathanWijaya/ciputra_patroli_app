@@ -47,6 +47,7 @@ class _StartPatroliState extends State<StartPatroli> {
   bool isMapReady = false;
 
   Set<int> _submittedCheckpoints = {};
+  List<LatLng> _patrolRoute = [];
 
   @override
   void initState() {
@@ -76,12 +77,12 @@ class _StartPatroliState extends State<StartPatroli> {
     loginVM = args['loginVM'] as LoginViewModel;
     patroliVM = args['patroliVM'] as PatroliViewModel;
 
-    log('[DEBUG] PatroliMulaiPage: Using existing PatroliViewModel');
-    log('[DEBUG] PatroliMulaiPage: Current patroli: ${patroliVM.currentPatroli?.toMap()}');
+    log('PatroliMulaiPage: Using existing PatroliViewModel');
+    log('PatroliMulaiPage: Current patroli: ${patroliVM.currentPatroli?.toMap()}');
   }
 
   Future<void> _showConfirmationDialog() async {
-    bool startPatroli = await showDialog(
+    bool shouldStartPatroli = await showDialog(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
@@ -105,50 +106,11 @@ class _StartPatroliState extends State<StartPatroli> {
       },
     );
 
-    if (!startPatroli) {
+    if (!shouldStartPatroli) {
       await NavigationService.pop();
     } else {
-      log('[DEBUG] PatroliMulaiPage: Starting patroli process');
-      final satpamId = loginVM.satpamId;
-      if (satpamId == null) {
-        log('[ERROR] PatroliMulaiPage: satpamId is null');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-                'Error: Data satpam tidak ditemukan. Silakan login ulang.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        await NavigationService.pop();
-        return;
-      }
-
-      log('[DEBUG] PatroliMulaiPage: loginVM.satpamId: $satpamId');
-      log('[DEBUG] PatroliMulaiPage: penugasan details - id: ${penugasan.id}, lokasiId: ${penugasan.lokasiId}, jadwalPatroliId: ${penugasan.jadwalPatroliId}');
-
-      startTime = DateTime.now();
-      jamMulaiPatroli = DateFormat('HH:mm:ss').format(startTime);
-      startTimer();
-      startPatrolTracking();
-
-      try {
-        patroliVM.createPatroli(
-            satpamId: satpamId,
-            lokasiId: penugasan.lokasiId,
-            penugasanId: penugasan.id,
-            jadwalPatroliId: penugasan.jadwalPatroliId);
-        log('[DEBUG] PatroliMulaiPage: Patroli creation initiated successfully');
-      } catch (e, stackTrace) {
-        log('[ERROR] PatroliMulaiPage: Failed to create patroli');
-        log('[ERROR] PatroliMulaiPage: Error details: $e');
-        log('[STACKTRACE] $stackTrace');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal memulai patroli: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      log('PatroliMulaiPage: Starting patroli process');
+      await startPatroli();
     }
   }
 
@@ -204,6 +166,7 @@ class _StartPatroliState extends State<StartPatroli> {
     setState(() {
       try {
         _currentLocation = LatLng(position.latitude, position.longitude);
+        _patrolRoute.add(_currentLocation);
         if (isMapReady) {
           _mapController.move(_currentLocation, 15.0);
         }
@@ -215,6 +178,7 @@ class _StartPatroliState extends State<StartPatroli> {
         ).listen((Position position) {
           setState(() {
             _currentLocation = LatLng(position.latitude, position.longitude);
+            _patrolRoute.add(_currentLocation);
             _mapController.move(_currentLocation, 15.0);
           });
         });
@@ -228,13 +192,59 @@ class _StartPatroliState extends State<StartPatroli> {
     _positionStream?.cancel();
   }
 
+  Future<void> startPatroli() async {
+    if (patroliVM.currentPatroli != null) {
+      log("Patrol is already in progress");
+    } else {
+      log("Starting patrol process");
+      final satpamId = loginVM.satpamId;
+      if (satpamId == null) {
+        log("Satpam ID not found");
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                'Error: Data satpam tidak ditemukan. Silakan login ulang.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        await NavigationService.pop();
+        return;
+      }
+
+      log("Starting patrol for satpam ID: $satpamId");
+      log("Assignment details - ID: ${penugasan.id}, Location ID: ${penugasan.lokasiId}, Schedule ID: ${penugasan.jadwalPatroliId}");
+
+      startTime = DateTime.now();
+      jamMulaiPatroli = DateFormat('HH:mm:ss').format(startTime);
+      startTimer();
+      startPatrolTracking();
+
+      try {
+        patroliVM.createPatroli(
+            satpamId: satpamId,
+            lokasiId: penugasan.lokasiId,
+            penugasanId: penugasan.id,
+            jadwalPatroliId: penugasan.jadwalPatroliId);
+        log("Patrol creation has been initiated successfully");
+      } catch (e) {
+        log("Failed to create patrol: $e");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal memulai patroli: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   void submitForm() async {
-    log("[DEBUG] Submitting Form - Checking if _currentPatroli is null");
+    log("Submitting patrol form");
 
     if (patroliVM.currentPatroli == null) {
-      log("[ERROR] _currentPatroli is still null before saving.");
+      log("Current patrol data not found before saving");
     } else {
-      log("[DEBUG] _currentPatroli exists before saving: ${patroliVM.currentPatroli!.toMap().toString()}");
+      log("Current patrol data exists before saving: ${patroliVM.currentPatroli!.toMap().toString()}");
 
       patroliVM.endPatroli(
         catatanPatroli: _textController.text,
@@ -248,15 +258,19 @@ class _StartPatroliState extends State<StartPatroli> {
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
-        log('[DEBUG] PatroliMulaiPage: Back button pressed');
         await patroliVM.deleteTemporaryPatroli();
         return true;
       },
       child: Scaffold(
-        appBar: CustomAppbar(titleName: "Mulai Patroli"),
+        appBar: const CustomAppbar(titleName: "Mulai Patroli"),
         body: Stack(
           children: [
-            OpenStreetMapWidget(penugasan: penugasan),
+            OpenStreetMapWidget(
+              penugasan: penugasan,
+              patrolRoute: _patrolRoute,
+              isTracking: true,
+              simulatePolyline: false,
+            ),
             Align(
               alignment: Alignment.bottomCenter,
               child: DraggableScrollableSheet(
@@ -514,7 +528,7 @@ class _StartPatroliState extends State<StartPatroli> {
                     ? null
                     : () async {
                         if (patroliVM.currentPatroli == null) {
-                          log('[ERROR] Cannot submit checkpoint: currentPatroli is null');
+                          log('Cannot submit checkpoint: currentPatroli is null');
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text(
@@ -525,7 +539,7 @@ class _StartPatroliState extends State<StartPatroli> {
                           return;
                         }
 
-                        log('[DEBUG] Navigating to checkpoint with patroli: ${patroliVM.currentPatroli!.toMap()}');
+                        log('Navigating to checkpoint with patroli: ${patroliVM.currentPatroli!.toMap()}');
                         final result = await Navigator.pushNamed(
                           context,
                           '/checkpoint',

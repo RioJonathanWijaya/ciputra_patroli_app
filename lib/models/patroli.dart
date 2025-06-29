@@ -1,3 +1,5 @@
+import 'package:intl/intl.dart';
+
 class Patroli {
   final String id;
   DateTime? jamMulai;
@@ -37,11 +39,9 @@ class Patroli {
     if (dateStr == null) return null;
 
     try {
-      // Try parsing as ISO 8601
       return DateTime.parse(dateStr);
     } catch (e) {
       try {
-        // Try parsing as HH:mm format
         final timeParts = dateStr.split(':');
         if (timeParts.length == 2) {
           final now = DateTime.now();
@@ -55,7 +55,6 @@ class Patroli {
         }
       } catch (e) {
         try {
-          // Try parsing as "dd MMMM yyyy" format
           final months = {
             'January': 1,
             'February': 2,
@@ -90,7 +89,36 @@ class Patroli {
   }
 
   factory Patroli.fromMap(Map<String, dynamic> map) {
-    final patroli = Patroli(
+    DateTime? safeParse(String? dateString) {
+      if (dateString == null || dateString.trim().isEmpty) return null;
+
+      try {
+        return DateTime.parse(dateString);
+      } catch (_) {}
+
+      try {
+        return DateFormat('dd MMM yyyy', 'en_US').parse(dateString);
+      } catch (_) {}
+
+      try {
+        return DateFormat('dd MMMM yyyy', 'id_ID').parse(dateString);
+      } catch (_) {}
+
+      try {
+        final parts = dateString.split(':');
+        if (parts.length >= 2) {
+          final now = DateTime.now();
+          final hour = int.parse(parts[0]);
+          final minute = int.parse(parts[1]);
+          final second = parts.length == 3 ? int.parse(parts[2]) : 0;
+          return DateTime(now.year, now.month, now.day, hour, minute, second);
+        }
+      } catch (_) {}
+
+      return null;
+    }
+
+    return Patroli(
       id: map['id'] ?? '',
       catatanPatroli: map['catatan_patroli'] ?? '',
       rutePatroli: map['rute_patroli'] ?? '',
@@ -98,8 +126,10 @@ class Patroli {
       lokasiId: map['lokasiId'] ?? map['lokasi_id'] ?? '',
       jadwalPatroliId: map['jadwalPatroliId'] ?? map['jadwal_patroli_id'] ?? '',
       penugasanId: map['penugasanId'] ?? map['penugasan_id'] ?? '',
-      jamMulai: null,
-      jamSelesai: null,
+      jamMulai: safeParse(
+          map['jam_mulai']?.toString() ?? map['jamMulai']?.toString()),
+      jamSelesai: safeParse(
+          map['jam_selesai']?.toString() ?? map['jamSelesai']?.toString()),
       durasiPatroli: map['durasi_patroli'] != null
           ? Duration(seconds: map['durasi_patroli'])
           : map['durasiPatroli'] != null
@@ -109,33 +139,10 @@ class Patroli {
       checkpoints: map['checkpoints'] != null
           ? List<Map<String, dynamic>>.from(map['checkpoints']).toList()
           : [],
-      tanggal: DateTime.now(),
+      tanggal: safeParse(map['tanggal']?.toString()) ?? DateTime.now(),
       lokasiNama: map['lokasi_nama'],
       satpamNama: map['satpam_nama'],
     );
-
-    // Parse start time
-    final startTime = map['jam_mulai'] ?? map['jamMulai'];
-    if (startTime != null) {
-      patroli.jamMulai = patroli._parseDateTime(startTime.toString());
-    }
-
-    // Parse end time
-    final endTime = map['jam_selesai'] ?? map['jamSelesai'];
-    if (endTime != null) {
-      patroli.jamSelesai = patroli._parseDateTime(endTime.toString());
-    }
-
-    // Parse tanggal
-    final tanggal = map['tanggal'];
-    if (tanggal != null) {
-      final parsedTanggal = patroli._parseDateTime(tanggal.toString());
-      if (parsedTanggal != null) {
-        patroli.tanggal = parsedTanggal;
-      }
-    }
-
-    return patroli;
   }
 
   Map<String, dynamic> toMap() {
